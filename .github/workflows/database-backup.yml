@@ -33,14 +33,13 @@ jobs:
 
       - name: Export roles, schema and data
         run: |
-          # Build the session-pooler URL here so the project username stays
-          # correct and password punctuation is safely URL-encoded.
-          encoded_password="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
-          export SUPABASE_DB_URL="postgresql://postgres.xwzrtbjlztdtxvwckqrl:${encoded_password}@aws-0-eu-west-2.pooler.supabase.com:5432/postgres"
+          # Keep the password out of the URL. The CLI passes it separately,
+          # avoiding URL-parsing problems when the password contains symbols.
+          export SUPABASE_DB_URL="postgresql://postgres.xwzrtbjlztdtxvwckqrl@aws-0-eu-west-2.pooler.supabase.com:5432/postgres"
           mkdir -p backup
-          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" --data-only --use-copy -f backup/data.sql
 
       - name: Encrypt backup
         id: archive
