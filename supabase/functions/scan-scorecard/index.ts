@@ -41,20 +41,23 @@ Deno.serve(async request => {
       return Response.json({ error: 'Please use a smaller photo (under about 6 MB).' }, { status: 400, headers });
     }
 
-    const apiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!apiKey) return Response.json({ error: 'The scorecard scanner has not been configured yet.' }, { status: 503, headers });
-    const response = await fetch('https://api.openai.com/v1/responses', {
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!apiKey) return Response.json({ error: 'The Gemini scorecard scanner has not been configured yet.' }, { status: 503, headers });
+    const image = image_data_url.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!image) return Response.json({ error: 'Please choose a standard image file.' }, { status: 400, headers });
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_VISION_MODEL') || 'gemini-2.5-flash'}:generateContent`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: Deno.env.get('OPENAI_VISION_MODEL') || 'gpt-4.1-mini',
-        input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }, { type: 'input_image', image_url: image_data_url, detail: 'high' }] }],
-        text: { format: { type: 'json_object' } },
+        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: image[1] || 'image/jpeg', data: image[2] || '' } }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0 },
       }),
     });
-    if (!response.ok) throw new Error(`Scanner service returned ${response.status}: ${await response.text()}`);
+    if (!response.ok) throw new Error(`Gemini scanner returned ${response.status}: ${await response.text()}`);
     const result = await response.json();
-    const extracted = JSON.parse(result.output_text || '{}');
+    const text = result.candidates?.[0]?.content?.parts?.find((part: { text?: string }) => part.text)?.text;
+    if (!text) throw new Error('Gemini did not return readable scorecard data.');
+    const extracted = JSON.parse(text);
     return Response.json({ extracted }, { headers });
   } catch (error) {
     console.error(error);
