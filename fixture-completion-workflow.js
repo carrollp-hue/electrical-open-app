@@ -87,7 +87,7 @@
       const scoreCard = document.querySelector('#scorecard-form')?.closest('.admin-card');
       if (!scoreCard) return;
       const options = state.fixtures.filter(item => !['completed', 'archived'].includes(item.status)).map(item => `<option value="${item.id}">${date(item.fixture_date)} · ${esc(item.name)}</option>`).join('');
-      scoreCard.insertAdjacentHTML('afterend', `<div class="admin-card" id="finish-fixture-card"><h2>Finish fixture</h2><p>Enter official paper scorecards or NRs here. Member cards shown on the fixture page are verification evidence only.</p><label>Fixture checklist<select id="finish-fixture-select"><option value="">Select fixture</option>${options}</select></label><div id="finish-fixture-checklist"><p>Select a fixture to see outstanding official scorecards.</p></div><form class="admin-form" id="finish-nr-form"><label>Record Non Return<select name="fixture_id" id="finish-nr-fixture" required><option value="">Select fixture</option>${options}</select></label><label>Player<select name="player_id" id="finish-nr-player" required disabled><option value="">Choose a fixture first</option></select></label><button class="secondary" type="submit">Record NR</button></form><form class="admin-form" id="finish-finalize-form"><label>Finalize fixture<select name="fixture_id" required><option value="">Select fixture</option>${options}</select></label><label>PCC<input name="playing_conditions_adjustment" type="number" min="-1" max="3" value="0" required></label><button class="primary" type="submit">Finalize results</button></form></div>`);
+      scoreCard.insertAdjacentHTML('afterend', `<div class="admin-card" id="finish-fixture-card"><h2>Finish fixture</h2><p>Enter official paper scorecards or NRs here. Member cards shown on the fixture page are verification evidence only.</p><label>Fixture checklist<select id="finish-fixture-select"><option value="">Select fixture</option>${options}</select></label><div id="finish-fixture-checklist"><p>Select a fixture to see outstanding official scorecards.</p></div><form class="admin-form" id="finish-finalize-form"><input name="fixture_id" id="finish-finalize-fixture" type="hidden"><label>PCC<input name="playing_conditions_adjustment" type="number" min="-1" max="3" value="0" required></label><button class="primary" type="submit">Finalize results</button></form></div>`);
       card = document.querySelector('#finish-fixture-card');
     }
     const legacyFinishCard = document.querySelector('#non-return-form')?.closest('.admin-card');
@@ -99,26 +99,37 @@
         card.append(commitForm);
         commitCard?.remove();
       }
+      if (!commitForm.dataset.simplified) {
+        commitForm.dataset.simplified = 'true';
+        commitForm.innerHTML = `<input name="fixture_id" id="finish-commit-fixture" type="hidden"><button class="primary" type="submit">Commit fixture</button>`;
+      }
     }
     const select = document.querySelector('#finish-fixture-select');
     if (select?.dataset.bound) return;
     select.dataset.bound = 'true';
-    select.addEventListener('change', event => showFinishChecklist(event.target.value));
-    const nrFixture = document.querySelector('#finish-nr-fixture'), nrPlayer = document.querySelector('#finish-nr-player');
-    nrFixture?.addEventListener('change', () => {
-      const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === nrFixture.value).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
-      nrPlayer.innerHTML = `<option value="">Select player</option>${people.map(item => `<option value="${item.player_id}">${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}</option>`).join('')}`;
-      nrPlayer.disabled = !nrFixture.value;
+    select.addEventListener('change', event => {
+      const fixtureId = event.target.value;
+      document.querySelector('#finish-finalize-fixture').value = fixtureId;
+      document.querySelector('#finish-commit-fixture').value = fixtureId;
+      showFinishChecklist(fixtureId);
     });
-    document.querySelector('#finish-nr-form')?.addEventListener('submit', saveNonReturn);
     document.querySelector('#finish-finalize-form')?.addEventListener('submit', finalizeFixture);
     card.addEventListener('click', event => {
       const score = event.target.closest('[data-finish-score]'), nr = event.target.closest('[data-finish-nr]'), fixtureId = select?.value;
       if (!fixtureId || (!score && !nr)) return;
-      const formSelect = document.querySelector(score ? '#scorecard-fixture' : '#finish-nr-fixture');
-      const playerSelect = document.querySelector(score ? '#scorecard-player' : '#finish-nr-player');
+      if (nr) {
+        const playerId = nr.dataset.finishNr, participant = participantFor(fixtureId, playerId), index = participant?.handicap_index_override ?? snapshot(playerId)?.index_value;
+        if (!window.confirm(`Record a Non Return for ${displayName(participant?.players)}?`)) return;
+        client.from('fixture_entries').upsert({ fixture_id: fixtureId, player_id: playerId, handicap_index_at_entry: index == null ? null : Number(index), gross_score: null, nett_score: null, stableford_points: null, score_differential: null, order_of_merit_points: 0, esr_adjustment: 0, winner_cut: 0, score_status: 'non_return' }, { onConflict: 'fixture_id,player_id' }).then(async ({ error }) => {
+          if (error) return message(error.message, true);
+          await load(); location.hash = '#admin/scores'; message('Non Return recorded.');
+        });
+        return;
+      }
+      const formSelect = document.querySelector('#scorecard-fixture');
+      const playerSelect = document.querySelector('#scorecard-player');
       formSelect.value = fixtureId; formSelect.dispatchEvent(new Event('change'));
-      setTimeout(() => { playerSelect.value = (score || nr).dataset.finishScore || (score || nr).dataset.finishNr; playerSelect.dispatchEvent(new Event('change')); playerSelect.closest('form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 0);
+      setTimeout(() => { playerSelect.value = score.dataset.finishScore; playerSelect.dispatchEvent(new Event('change')); playerSelect.closest('form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 0);
     });
   };
   const refresh = () => {
