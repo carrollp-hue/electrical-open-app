@@ -52,11 +52,12 @@ Deno.serve(async request => {
         text: { format: { type: 'json_object' } },
       }),
     });
-    if (!response.ok) throw new Error(`Scanner service returned ${response.status}.`);
+    if (!response.ok) throw new Error(`Scanner service returned ${response.status}: ${await response.text()}`);
     const result = await response.json();
     const extracted = JSON.parse(result.output_text || '{}');
     return Response.json({ extracted }, { headers });
   } catch (error) {
+    console.error(error);
     return Response.json({ error: error instanceof Error ? error.message : 'Could not scan the scorecard.' }, { status: 500, headers });
   }
 });
