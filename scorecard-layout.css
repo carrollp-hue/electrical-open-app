@@ -4,3 +4,32 @@
   border-top: 8px solid var(--wash);
   color: var(--green);
 }
+
+/* Clear group divisions make the compact phone scorecards easier to scan. */
+.paired-scorecard-table th,
+.paired-scorecard-table td,
+.course-scorecard-table th,
+.course-scorecard-table td {
+  text-align: center;
+}
+
+.course-scorecard-table th:first-child {
+  text-align: center;
+}
+
+.paired-scorecard-table th:nth-child(1),
+.paired-scorecard-table td:nth-child(1),
+.paired-scorecard-table th:nth-child(3),
+.paired-scorecard-table td:nth-child(3),
+.paired-scorecard-table th:nth-child(5),
+.paired-scorecard-table td:nth-child(5),
+.course-scorecard-table th:nth-child(1),
+.course-scorecard-table td:nth-child(1) {
+  border-right: 2px solid var(--line);
+}
+
+.front-nine-subtotal td:nth-child(1),
+.front-nine-subtotal td:nth-child(2),
+.front-nine-subtotal td:nth-child(4) {
+  border-right: 2px solid var(--line);
+}
