@@ -66,7 +66,12 @@
     setMessage('Reading scorecard…');
     const imageData = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
     const { data, error } = await client.functions.invoke('scan-scorecard', { body: { image_data_url: imageData } });
-    if (error || data?.error) return setMessage(data?.error || error.message || 'Could not scan the scorecard.', true);
+    if (error) {
+      let detail = error.message || 'Could not scan the scorecard.';
+      try { detail = (await error.context?.json())?.error || detail; } catch (_) { /* The gateway did not provide a JSON body. */ }
+      return setMessage(detail, true);
+    }
+    if (data?.error) return setMessage(data.error, true);
     const extracted = data.extracted || {};
     extracted.course_name = form.elements.course_name.value.trim();
     extracted.effective_from = form.elements.effective_from.value;
