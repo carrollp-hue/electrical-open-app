@@ -7,6 +7,8 @@
 supabase/import-workbook.sql
 supabase/backups/
 *.csv
+backup/
+*.tar.gz.enc
 
 # Local deployment and editor artefacts
 *.zip

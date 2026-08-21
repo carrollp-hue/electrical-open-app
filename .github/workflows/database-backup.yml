@@ -1,0 +1,67 @@
+name: Encrypted Supabase backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every Sunday at 02:17 UTC (02:17/03:17 UK time, depending on daylight saving).
+    - cron: '17 2 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Export and encrypt database
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
+      BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+    steps:
+      - name: Validate backup configuration
+        run: |
+          test -n "$SUPABASE_DB_URL"
+          test -n "$BACKUP_PASSPHRASE"
+          test -n "$BACKUP_REPOSITORY"
+          test -n "$BACKUP_REPO_TOKEN"
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Export roles, schema and data
+        run: |
+          mkdir -p backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+
+      - name: Encrypt backup
+        id: archive
+        run: |
+          stamp="$(date -u +'%Y-%m-%dT%H-%M-%SZ')"
+          archive="electrical-open-${stamp}.tar.gz.enc"
+          tar -C backup -czf - roles.sql schema.sql data.sql | openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 -pass env:BACKUP_PASSPHRASE -out "$archive"
+          echo "file=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Keep a 90-day encrypted emergency copy in Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.archive.outputs.file }}
+          path: ${{ steps.archive.outputs.file }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Copy encrypted backup to the private backup repository
+        run: |
+          git clone "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/${BACKUP_REPOSITORY}.git" private-backups
+          mkdir -p private-backups/supabase
+          cp "${{ steps.archive.outputs.file }}" private-backups/supabase/
+          cd private-backups
+          git config user.name "Electrical Open Backup"
+          git config user.email "backup@users.noreply.github.com"
+          git add supabase/
+          git commit -m "Encrypted database backup $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push
