@@ -73,11 +73,13 @@
     const { data, error } = await client.from('fixture_entries').select('id, player_id, score_status').eq('fixture_id', fixtureId);
     if (error) return void (list.innerHTML = '<p>Unable to check scorecard status.</p>');
     const entries = new Map((data || []).map(item => [item.player_id, item]));
+    const paired = await client.rpc('fixture_paired_scorecards_for_results', { p_fixture_id: fixtureId });
+    const pairedCards = paired.data || [];
     const entryIds = (data || []).map(item => item.id);
     const scores = entryIds.length ? await client.from('hole_scores').select('fixture_entry_id').in('fixture_entry_id', entryIds) : { data: [] };
     const counts = (scores.data || []).reduce((map, item) => map.set(item.fixture_entry_id, (map.get(item.fixture_entry_id) || 0) + 1), new Map());
     const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixtureId).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
-    list.innerHTML = `<h3>Official scorecard checklist</h3>${people.map(item => { const entry = entries.get(item.player_id), complete = entry?.score_status === 'completed' && counts.get(entry.id) === 18, nr = entry?.score_status === 'non_return'; return `<div class="finish-check-row"><span>${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}</span>${complete ? '<strong class="finish-ok">Official scorecard complete</strong>' : nr ? '<strong class="finish-ok">Non Return</strong>' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Enter score</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`}</div>`; }).join('')}`;
+    list.innerHTML = `<h3>Official scorecard checklist</h3>${people.map(item => { const entry = entries.get(item.player_id), complete = entry?.score_status === 'completed' && counts.get(entry.id) === 18, nr = entry?.score_status === 'non_return', submitted = pairedCards.some(card => (card.scorer_player_id === item.player_id && card.own_status === 'submitted') || (card.marked_player_id === item.player_id && card.marked_status === 'submitted')); const pending = submitted ? '<small class="finish-submitted">Member card submitted — enter paper result</small>' : ''; return `<div class="finish-check-row"><span>${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}${pending}</span>${complete ? '<strong class="finish-ok">Official scorecard complete</strong>' : nr ? '<strong class="finish-ok">Non Return</strong>' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Enter paper result</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`}</div>`; }).join('')}`;
   };
   const improveFinishWorkflow = () => {
     const panel = document.querySelector('#app .admin-panel');
@@ -87,7 +89,7 @@
       const scoreCard = document.querySelector('#scorecard-form')?.closest('.admin-card');
       if (!scoreCard) return;
       const options = state.fixtures.filter(item => !['completed', 'archived'].includes(item.status)).map(item => `<option value="${item.id}">${date(item.fixture_date)} · ${esc(item.name)}</option>`).join('');
-      scoreCard.insertAdjacentHTML('afterend', `<div class="admin-card" id="finish-fixture-card"><h2>Finish fixture</h2><p>Enter official paper scorecards or NRs here. Member cards shown on the fixture page are verification evidence only.</p><label>Fixture checklist<select id="finish-fixture-select"><option value="">Select fixture</option>${options}</select></label><div id="finish-fixture-checklist"><p>Select a fixture to see outstanding official scorecards.</p></div><form class="admin-form" id="finish-finalize-form"><input name="fixture_id" id="finish-finalize-fixture" type="hidden"><label>PCC<input name="playing_conditions_adjustment" type="number" min="-1" max="3" value="0" required></label><button class="primary" type="submit">Finalize results</button></form></div>`);
+      scoreCard.insertAdjacentHTML('afterend', `<div class="admin-card" id="finish-fixture-card"><h2>Finish fixture</h2><p>Enter official paper scorecards or NRs here. Member cards shown on the fixture page are verification evidence only.</p><label>Fixture checklist<select id="finish-fixture-select"><option value="">Select fixture</option>${options}</select></label><div id="finish-fixture-checklist"><p>Select a fixture to see outstanding official scorecards.</p></div><label class="pcc-field">PCC<input id="finish-pcc" type="number" min="-1" max="3" value="0" required></label></div>`);
       card = document.querySelector('#finish-fixture-card');
     }
     const legacyFinishCard = document.querySelector('#non-return-form')?.closest('.admin-card');
@@ -101,19 +103,22 @@
       }
       if (!commitForm.dataset.simplified) {
         commitForm.dataset.simplified = 'true';
-        commitForm.innerHTML = `<input name="fixture_id" id="finish-commit-fixture" type="hidden"><button class="primary" type="submit">Commit fixture</button>`;
+        commitForm.innerHTML = `<input name="fixture_id" id="finish-commit-fixture" type="hidden"><input name="playing_conditions_adjustment" id="finish-commit-pcc" type="hidden" value="0"><button class="primary" type="submit">Finalize & commit fixture</button>`;
       }
     }
     const select = document.querySelector('#finish-fixture-select');
+    const pccInput = document.querySelector('#finish-pcc');
+    if (pccInput && !pccInput.dataset.bound) {
+      pccInput.dataset.bound = 'true';
+      pccInput.addEventListener('input', event => { const target = document.querySelector('#finish-commit-pcc'); if (target) target.value = event.target.value; });
+    }
     if (select?.dataset.bound) return;
     select.dataset.bound = 'true';
     select.addEventListener('change', event => {
       const fixtureId = event.target.value;
-      document.querySelector('#finish-finalize-fixture').value = fixtureId;
       document.querySelector('#finish-commit-fixture').value = fixtureId;
       showFinishChecklist(fixtureId);
     });
-    document.querySelector('#finish-finalize-form')?.addEventListener('submit', finalizeFixture);
     card.addEventListener('click', event => {
       const score = event.target.closest('[data-finish-score]'), nr = event.target.closest('[data-finish-nr]'), fixtureId = select?.value;
       if (!fixtureId || (!score && !nr)) return;

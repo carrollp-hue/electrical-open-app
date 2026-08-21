@@ -14,7 +14,11 @@
     document.querySelector('#commit-fixture-form')?.addEventListener('submit', async event => {
       event.preventDefault();
       if (!window.confirm('Commit this fixture? It will no longer appear in the admin fixture lists.')) return;
-      const fixtureId = new FormData(event.currentTarget).get('fixture_id');
+      const data = new FormData(event.currentTarget), fixtureId = data.get('fixture_id'), pcc = data.get('playing_conditions_adjustment');
+      if (pcc !== null) {
+        const { error: finalizeError } = await client.rpc('finalize_fixture_differentials', { p_fixture_id: fixtureId, p_playing_conditions: Number(pcc) });
+        if (finalizeError) return message(finalizeError.message, true);
+      }
       const { error } = await client.rpc('commit_fixture', { p_fixture_id: fixtureId });
       if (error) return message(error.message, true);
       await load();

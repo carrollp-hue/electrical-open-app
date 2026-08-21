@@ -89,4 +89,7 @@
 .finish-ok { color: var(--accent, #6bd195); font-size: .82rem; text-align: right; }
 .finish-actions { display: flex; gap: .4rem; }
 .finish-actions .secondary { padding: .45rem .55rem; font-size: .78rem; }
+.finish-submitted { display: block; margin-top: .18rem; color: var(--muted, #9eb8aa); font-size: .75rem; }
+.pcc-field { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.pcc-field input { width: 5.5rem; text-align: right; }
 @media (max-width: 520px) { .finish-check-row { align-items: flex-start; flex-direction: column; } .finish-ok { text-align: left; } }
