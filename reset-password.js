@@ -37,7 +37,7 @@
   form.addEventListener('submit', async event => {
     event.preventDefault();
     if (!validLink) return;
-    if (password.value.length < 12) { message.textContent = 'Use at least 12 characters for your password.'; message.classList.add('error'); return; }
+    if (password.value.length < 6) { message.textContent = 'Use at least 6 characters for your password.'; message.classList.add('error'); return; }
     if (password.value !== confirm.value) { message.textContent = 'The passwords do not match.'; message.classList.add('error'); return; }
     const button = form.querySelector('button');
     button.disabled = true;
