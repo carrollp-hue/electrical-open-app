@@ -100,7 +100,7 @@
         setMessage('Code verified. Choose your new password.');
         return;
       }
-      if (password.value.length < 12) throw new Error('Use at least 12 characters for your password.');
+      if (password.value.length < 6) throw new Error('Use at least 6 characters for your password.');
       if (password.value !== confirm.value) throw new Error('The passwords do not match.');
       const { error } = await client.auth.updateUser({ password: password.value });
       if (error) throw error;
