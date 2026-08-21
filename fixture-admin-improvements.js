@@ -128,6 +128,14 @@
     });
   };
 
+  const keepActiveAdminTabVisible = () => {
+    const tabs = document.querySelector('.admin-tabs');
+    const active = tabs?.querySelector('.admin-tab.active');
+    if (!tabs || !active) return;
+    const left = active.offsetLeft - (tabs.clientWidth - active.offsetWidth) / 2;
+    tabs.scrollLeft = Math.max(0, left);
+  };
+
   const renameTabs = () => {
     document.querySelectorAll('.admin-tab').forEach(tab => {
       if (tab.getAttribute('href') === '#admin/course' && tab.textContent !== 'Course Setup') tab.textContent = 'Course Setup';
@@ -175,6 +183,7 @@
     improveParticipantTab();
     improveAvailableLists();
     applyFixturePlayingOverrides();
+    requestAnimationFrame(keepActiveAdminTabVisible);
     // Ignore mutations created by the small presentation changes above.
     setTimeout(() => { wiring = false; }, 0);
   };
