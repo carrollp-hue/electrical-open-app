@@ -90,6 +90,8 @@
       scoreCard.insertAdjacentHTML('afterend', `<div class="admin-card" id="finish-fixture-card"><h2>Finish fixture</h2><p>Enter official paper scorecards or NRs here. Member cards shown on the fixture page are verification evidence only.</p><label>Fixture checklist<select id="finish-fixture-select"><option value="">Select fixture</option>${options}</select></label><div id="finish-fixture-checklist"><p>Select a fixture to see outstanding official scorecards.</p></div><form class="admin-form" id="finish-nr-form"><label>Record Non Return<select name="fixture_id" id="finish-nr-fixture" required><option value="">Select fixture</option>${options}</select></label><label>Player<select name="player_id" id="finish-nr-player" required disabled><option value="">Choose a fixture first</option></select></label><button class="secondary" type="submit">Record NR</button></form><form class="admin-form" id="finish-finalize-form"><label>Finalize fixture<select name="fixture_id" required><option value="">Select fixture</option>${options}</select></label><label>PCC<input name="playing_conditions_adjustment" type="number" min="-1" max="3" value="0" required></label><button class="primary" type="submit">Finalize results</button></form></div>`);
       card = document.querySelector('#finish-fixture-card');
     }
+    const legacyFinishCard = document.querySelector('#non-return-form')?.closest('.admin-card');
+    if (legacyFinishCard && legacyFinishCard !== card) legacyFinishCard.remove();
     const commitForm = document.querySelector('#commit-fixture-form');
     if (commitForm) {
       const commitCard = commitForm.closest('.admin-card');
