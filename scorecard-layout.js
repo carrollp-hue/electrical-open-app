@@ -11,7 +11,10 @@
     if (!ninth || !eighteenth || frontNine.length !== 9 || backNine.length !== 9) return;
     const subtotalRow = (label, scoreRows) => { const total = column => scoreRows.reduce((sum, row) => sum + Number(row.cells[column]?.textContent || 0), 0); const row = document.createElement('tr'); row.className = 'front-nine-subtotal'; row.innerHTML = `<td><strong>${label}</strong></td><td><strong>${total(1)}</strong></td><td></td><td><strong>${total(3)}</strong></td><td><strong>${total(4)}</strong></td><td><strong>${total(5)}</strong></td>`; return row; };
     ninth.after(subtotalRow('Out', frontNine));
-    eighteenth.after(subtotalRow('In', backNine));
+    const inRow = subtotalRow('In', backNine), repeatedOutRow = subtotalRow('Out', frontNine);
+    repeatedOutRow.classList.add('scorecard-out-repeat');
+    eighteenth.after(inRow);
+    inRow.after(repeatedOutRow);
     table.dataset.scorecardSubtotals = 'true';
   });
   new MutationObserver(addFrontNineSubtotal).observe(document.querySelector('#app'), { childList: true, subtree: true });
