@@ -152,14 +152,18 @@
       console.error('Fixture completion workflow could not initialise:', error);
     }
   };
-  document.addEventListener('click', event => {
+  const openOfficialScorecard = event => {
     const button = event.target.closest('[data-open-official-scorecard]');
     if (!button) return;
     event.preventDefault();
     const route = `#scorecard/${button.dataset.openOfficialScorecard}`;
     if (location.hash === route) render();
     else location.hash = route;
-  });
+  };
+  // Navigate on press as well as click. This avoids text-selection or touch
+  // gesture handling preventing the later click event from being delivered.
+  document.addEventListener('pointerdown', openOfficialScorecard, true);
+  document.addEventListener('click', openOfficialScorecard);
   const originalRender = render;
   render = function () { originalRender(); refresh(); };
   window.addEventListener('hashchange', refresh);
