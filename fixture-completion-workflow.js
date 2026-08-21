@@ -91,7 +91,13 @@
       card = document.querySelector('#finish-fixture-card');
     }
     const commitForm = document.querySelector('#commit-fixture-form');
-    if (commitForm) { const commitCard = commitForm.closest('.admin-card'); card.append(commitForm); commitCard?.remove(); }
+    if (commitForm) {
+      const commitCard = commitForm.closest('.admin-card');
+      if (commitCard !== card) {
+        card.append(commitForm);
+        commitCard?.remove();
+      }
+    }
     const select = document.querySelector('#finish-fixture-select');
     if (select?.dataset.bound) return;
     select.dataset.bound = 'true';
