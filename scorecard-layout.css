@@ -61,3 +61,16 @@
 .standard-scorecard-table .scorecard-total-row td {
   border-top: 8px solid var(--wash);
 }
+
+.scorecard-verification {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--wash);
+  font-size: .86rem;
+}
+
+.scorecard-verification h3 { margin: 0 0 7px; font-size: .95rem; }
+.scorecard-verification p, .scorecard-verification ul { margin: 0; padding-left: 18px; }
+.scorecard-verification li + li { margin-top: 6px; }
