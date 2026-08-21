@@ -2,6 +2,7 @@
   const addFrontNineSubtotal = () => document.querySelectorAll('#app table').forEach(table => {
     const headings = [...table.querySelectorAll('thead th')].map(cell => cell.textContent.trim().toUpperCase()).join('|');
     if (headings !== 'HOLE|PAR|SI|GROSS|NETT|PTS' || table.dataset.scorecardSubtotals) return;
+    table.classList.add('standard-scorecard-table');
     const rows = [...table.querySelectorAll('tbody tr')];
     const frontNine = rows.filter(row => Number(row.cells[0]?.textContent) >= 1 && Number(row.cells[0]?.textContent) <= 9);
     const backNine = rows.filter(row => Number(row.cells[0]?.textContent) >= 10 && Number(row.cells[0]?.textContent) <= 18);

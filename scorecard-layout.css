@@ -28,8 +28,30 @@
   border-right: 2px solid var(--line);
 }
 
-.front-nine-subtotal td:nth-child(1),
-.front-nine-subtotal td:nth-child(2),
-.front-nine-subtotal td:nth-child(4) {
+.paired-scorecard-subtotal td:nth-child(1),
+.paired-scorecard-subtotal td:nth-child(3),
+.paired-scorecard-subtotal td:nth-child(5) {
+  border-right: 2px solid var(--line);
+}
+
+.paired-scorecard-subtotal td,
+.paired-scorecard-total td {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.paired-scorecard-total td {
+  border-top: 1px solid var(--line);
+}
+
+.standard-scorecard-table th,
+.standard-scorecard-table td {
+  text-align: center;
+}
+
+.standard-scorecard-table th:nth-child(1),
+.standard-scorecard-table td:nth-child(1),
+.standard-scorecard-table th:nth-child(3),
+.standard-scorecard-table td:nth-child(3) {
   border-right: 2px solid var(--line);
 }
