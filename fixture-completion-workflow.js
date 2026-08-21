@@ -59,7 +59,9 @@
       const rowClass = provisional?.conflict ? 'provisional-result provisional-conflict' : provisional && !provisional.verified ? 'provisional-result' : '';
       const flag = provisional?.conflict ? ' <span class="result-warning" title="Submitted scores differ">!</span>' : '';
       const playerName = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`;
-      const playerCell = official?.id ? `<a class="text-link" href="#scorecard/${official.id}">${playerName}</a>` : playerName;
+      // Use a real button for the result-card action. It provides a larger,
+      // dependable tap target on touch devices than a hash-only text link.
+      const playerCell = official?.id ? `<button class="text-link scorecard-result-link" type="button" data-open-official-scorecard="${official.id}">${playerName}</button>` : playerName;
       return `<tr class="${rowClass}"><td>${result.position ?? '—'}</td><td>${playerCell}${flag}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${index == null ? '—' : playingFor(fixture, course, item.player_id)}</td><td>${result.gross == null ? 'NR' : result.gross}</td><td>${result.nett ?? '—'}</td><td>${result.points ?? '—'}</td><td>${result.oom}</td></tr>`;
     }).join('');
     table.querySelector('tbody').innerHTML = rows;
@@ -150,6 +152,14 @@
       console.error('Fixture completion workflow could not initialise:', error);
     }
   };
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-open-official-scorecard]');
+    if (!button) return;
+    event.preventDefault();
+    const route = `#scorecard/${button.dataset.openOfficialScorecard}`;
+    if (location.hash === route) render();
+    else location.hash = route;
+  });
   const originalRender = render;
   render = function () { originalRender(); refresh(); };
   window.addEventListener('hashchange', refresh);
