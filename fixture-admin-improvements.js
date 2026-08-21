@@ -105,8 +105,8 @@
 
   const renameTabs = () => {
     document.querySelectorAll('.admin-tab').forEach(tab => {
-      if (tab.getAttribute('href') === '#admin/course') tab.textContent = 'Course Setup';
-      if (tab.getAttribute('href') === '#admin/participants') tab.textContent = 'Participants & Handicaps';
+      if (tab.getAttribute('href') === '#admin/course' && tab.textContent !== 'Course Setup') tab.textContent = 'Course Setup';
+      if (tab.getAttribute('href') === '#admin/participants' && tab.textContent !== 'Participants & Handicaps') tab.textContent = 'Participants & Handicaps';
     });
   };
 
