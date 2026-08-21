@@ -19,7 +19,7 @@
 }
 
 /* A phone held sideways has much more usable width than the portrait shell. */
-@media (orientation: landscape) and (max-height: 600px) {
+@media (orientation: landscape) {
   body {
     padding: 0;
   }
