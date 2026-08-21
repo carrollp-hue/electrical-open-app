@@ -26,20 +26,39 @@ jobs:
           test -n "$BACKUP_REPOSITORY"
           test -n "$BACKUP_REPO_TOKEN"
 
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
       - name: Export roles, schema and data
         run: |
-          # Keep the password out of the URL. The CLI passes it separately,
-          # avoiding URL-parsing problems when the password contains symbols.
-          export SUPABASE_DB_URL="postgresql://postgres.xwzrtbjlztdtxvwckqrl@aws-0-eu-west-2.pooler.supabase.com:5432/postgres"
           mkdir -p backup
-          supabase db dump --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" --role-only -f backup/roles.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" -f backup/schema.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" --data-only --use-copy -f backup/data.sql
+          # Use the PostgreSQL tools directly rather than the Supabase CLI.
+          # PGPASSWORD is passed as a container environment variable, so special
+          # characters in the database password never need URL encoding.
+          export PGHOST="aws-0-eu-west-2.pooler.supabase.com"
+          export PGPORT="5432"
+          export PGUSER="postgres.xwzrtbjlztdtxvwckqrl"
+          export PGDATABASE="postgres"
+
+          docker run --rm \
+            -e PGPASSWORD="$SUPABASE_DB_PASSWORD" \
+            postgres:17 \
+            pg_dumpall --roles-only --no-role-passwords \
+              --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" \
+            > backup/roles.sql
+
+          docker run --rm \
+            -e PGPASSWORD="$SUPABASE_DB_PASSWORD" \
+            -v "$PWD/backup:/backup" \
+            postgres:17 \
+            pg_dump --schema=public --no-owner --no-privileges \
+              --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" --dbname="$PGDATABASE" \
+              --file=/backup/schema.sql
+
+          docker run --rm \
+            -e PGPASSWORD="$SUPABASE_DB_PASSWORD" \
+            -v "$PWD/backup:/backup" \
+            postgres:17 \
+            pg_dump --schema=public --data-only --no-owner --no-privileges \
+              --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" --dbname="$PGDATABASE" \
+              --file=/backup/data.sql
 
       - name: Encrypt backup
         id: archive

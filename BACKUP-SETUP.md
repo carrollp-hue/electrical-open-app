@@ -8,7 +8,7 @@ This workflow backs up the Electrical Open Supabase database every Sunday at 02:
 2. In the Electrical Open app repository, open **Settings → Secrets and variables → Actions**.
 3. Add these **repository secrets**:
 
-   - `SUPABASE_DB_PASSWORD` — the raw database password from Supabase. Do not enter a connection string: the workflow builds the correct, encoded Session pooler connection itself.
+   - `SUPABASE_DB_PASSWORD` — the raw database password from Supabase. Do not enter a connection string. The workflow supplies this directly to PostgreSQL without placing it in a URL.
    - `BACKUP_PASSPHRASE` — a long unique passphrase. Store it safely in a password manager; it is required to restore a backup.
    - `BACKUP_REPO_TOKEN` — a GitHub fine-grained personal access token with **Contents: Read and write** access to *only* the private backup repository.
 
