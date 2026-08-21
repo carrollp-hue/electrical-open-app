@@ -24,4 +24,10 @@
     const current = player();
     document.querySelector('#initials').textContent = current ? `${current.first_name[0]}${current.surname[0]}`.toUpperCase() : 'EO';
   };
+
+  const renderHelpRoute = () => {
+    if ((location.hash.slice(1) || 'home').split('/')[0] === 'help') render();
+  };
+  window.addEventListener('hashchange', renderHelpRoute);
+  renderHelpRoute();
 })();
