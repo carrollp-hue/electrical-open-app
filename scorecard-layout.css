@@ -41,7 +41,7 @@
 }
 
 .paired-scorecard-total td {
-  border-top: 1px solid var(--line);
+  border-top: 8px solid var(--wash);
 }
 
 .standard-scorecard-table th,
@@ -52,6 +52,12 @@
 .standard-scorecard-table th:nth-child(1),
 .standard-scorecard-table td:nth-child(1),
 .standard-scorecard-table th:nth-child(3),
-.standard-scorecard-table td:nth-child(3) {
+.standard-scorecard-table td:nth-child(3),
+.standard-scorecard-table th:nth-child(5),
+.standard-scorecard-table td:nth-child(5) {
   border-right: 2px solid var(--line);
+}
+
+.standard-scorecard-table .scorecard-total-row td {
+  border-top: 8px solid var(--wash);
 }

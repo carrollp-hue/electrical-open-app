@@ -4,6 +4,7 @@
     if (headings !== 'HOLE|PAR|SI|GROSS|NETT|PTS' || table.dataset.scorecardSubtotals) return;
     table.classList.add('standard-scorecard-table');
     const rows = [...table.querySelectorAll('tbody tr')];
+    rows.find(row => row.cells[0]?.textContent.trim().toLowerCase() === 'total')?.classList.add('scorecard-total-row');
     const frontNine = rows.filter(row => Number(row.cells[0]?.textContent) >= 1 && Number(row.cells[0]?.textContent) <= 9);
     const backNine = rows.filter(row => Number(row.cells[0]?.textContent) >= 10 && Number(row.cells[0]?.textContent) <= 18);
     const ninth = frontNine.find(row => Number(row.cells[0]?.textContent) === 9), eighteenth = backNine.find(row => Number(row.cells[0]?.textContent) === 18);
