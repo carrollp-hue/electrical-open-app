@@ -39,7 +39,7 @@
   const hydrateLiveResults = async fixtureId => {
     const fixture = state.fixtures.find(item => item.id === fixtureId), course = setup(fixture?.course_setup_id);
     const table = document.querySelector('#app .table');
-    if (!fixture || !course || !table || (!state.isStaff && !participantFor(fixtureId, player()?.id))) return;
+    if (!fixture || !course || !table || (fixture.is_historical && !(state.fixtureParticipants || []).some(item => item.fixture_id === fixtureId)) || (!state.isStaff && !participantFor(fixtureId, player()?.id))) return;
     const { data: cards, error } = await client.rpc('fixture_paired_scorecards_for_results', { p_fixture_id: fixtureId });
     if (error) return;
     const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixtureId).map(item => {
