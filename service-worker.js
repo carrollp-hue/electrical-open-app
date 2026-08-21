@@ -1,4 +1,4 @@
-const CACHE = "electrical-open-v82";
+const CACHE = "electrical-open-v83";
 const ASSETS = ["./index.html", "./reset-password.html", "./styles.css", "./scorecard-layout.css", "./bottom-nav-tuning.css", "./notification-indicator.css", "./password-management.css", "./app.js", "./scorecard-effective-index.js", "./fixture-editor.js", "./scorecard-layout.js", "./profile-selection.js", "./fixture-commit.js", "./membership-admin.js", "./member-invitations.js", "./admin-access-guard.js", "./fixture-home-sections.js", "./course-library.js", "./member-paired-scorecards.js", "./notifications.js", "./password-management.js", "./reset-password.js", "./supabase-config.js", "./manifest.webmanifest", "./icon.svg"];
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener("activate", event => event.waitUntil(Promise.all([

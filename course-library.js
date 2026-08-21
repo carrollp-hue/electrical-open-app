@@ -8,13 +8,13 @@
   }).join('');
 
   const reviewForm = (data = {}) => {
-    const teeOptions = (data.tee_options || []).filter(Boolean);
+    const teeOptions = (data.tees || []).filter(item => item?.name);
     const teeControl = teeOptions.length
-      ? `<label>Tee<select name="tee_name" required>${teeOptions.map(tee => `<option value="${escHtml(tee)}">${escHtml(tee)}</option>`).join('')}</select></label>`
+      ? `<label>Choose tee first<select name="tee_name" id="scanned-tee-select" required>${teeOptions.map(tee => `<option value="${escHtml(tee.name)}" ${tee.name === data.tee_name ? 'selected' : ''}>${escHtml(tee.name)}</option>`).join('')}</select></label>`
       : '<label>Tee colour / name<input name="tee_name" placeholder="Yellow" required></label>';
     return `<form class="admin-form course-review-form" id="course-review-form">
       <h3>Review extracted course data</h3>
-      <p>Check every value against the card before saving. Nothing changes on past fixtures.</p>
+      <p>Choose the tee first, then check every value against the card before saving. You can correct any value. Nothing changes on past fixtures.</p>
       <div class="field-row"><label>Course name<input name="course_name" value="${escHtml(data.course_name || '')}" required></label>${teeControl}</div>
       <div class="field-row"><label>Effective from<input name="effective_from" type="date" value="${escHtml(data.effective_from || today())}" required></label><label>Course rating<input name="course_rating" type="number" min="50" max="85" step="0.1" value="${data.course_rating ?? ''}" required></label></div>
       <div class="field-row"><label>Slope rating<input name="slope_rating" type="number" min="55" max="155" value="${data.slope_rating ?? ''}" required></label><label>Total par<input name="par" type="number" min="54" max="80" value="${data.par ?? ''}" required></label></div>
@@ -75,12 +75,22 @@
     const extracted = data.extracted || {};
     extracted.course_name = form.elements.course_name.value.trim();
     extracted.effective_from = form.elements.effective_from.value;
-    document.querySelector('#course-review').innerHTML = reviewForm(extracted);
-    bindReview();
-    setMessage('Scan complete. Review and correct the values below before saving.');
+    extracted.tees = extracted.tees?.filter(item => item?.name) || [];
+    if (!extracted.tees.length) extracted.tees = [{ name: '', course_rating: extracted.course_rating, slope_rating: extracted.slope_rating, par: extracted.par, holes: extracted.holes }];
+    renderScannedTee(extracted, extracted.tees[0].name);
+    setMessage('Scan complete. Choose the tee, then review and correct the values below before saving.');
   }
 
-  function bindReview() { document.querySelector('#course-review-form')?.addEventListener('submit', saveVersion); }
+  function renderScannedTee(scan, teeName) {
+    const tee = scan.tees.find(item => item.name === teeName) || scan.tees[0];
+    document.querySelector('#course-review').innerHTML = reviewForm({ ...scan, ...tee, tee_name: tee.name });
+    bindReview(scan);
+  }
+
+  function bindReview(scan) {
+    document.querySelector('#course-review-form')?.addEventListener('submit', saveVersion);
+    document.querySelector('#scanned-tee-select')?.addEventListener('change', event => renderScannedTee(scan, event.target.value));
+  }
 
   async function saveVersion(event) {
     event.preventDefault();

@@ -9,15 +9,17 @@ const cors = (request: Request) => ({
 const url = Deno.env.get('SUPABASE_URL')!;
 const service = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-const prompt = `Read this blank golf scorecard. Return JSON only, matching this shape:
+const prompt = `Read this blank golf scorecard. It may show more than one tee. Return JSON only, matching this shape:
 {
-  "tee_options": ["Yellow"],
-  "course_rating": 67.8,
-  "slope_rating": 116,
-  "par": 69,
-  "holes": [{"hole_number":1,"par":4,"stroke_index":8}]
+  "tees": [{
+    "name": "Yellow",
+    "course_rating": 67.8,
+    "slope_rating": 116,
+    "par": 69,
+    "holes": [{"hole_number":1,"par":4,"stroke_index":8}]
+  }]
 }
-Use null where a value is absent or illegible. Include exactly the 18 holes only when they can be read. Do not guess.`;
+Create a separate tee item for every tee with information on the card. Keep each tee's rating, slope, par and hole data together; never combine values from different tees. Use null where a value is absent or illegible. Include exactly the 18 holes only when they can be read. Do not guess.`;
 
 Deno.serve(async request => {
   const headers = cors(request);
