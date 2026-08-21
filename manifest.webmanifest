@@ -1,0 +1,12 @@
+{
+  "name": "Electrical Open Golf Society",
+  "short_name": "Electrical Open",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#176b45",
+  "description": "Handicaps, fixtures, results and Order of Merit for Electrical Open Golf Society.",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

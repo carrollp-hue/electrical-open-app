@@ -1,0 +1,14 @@
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Supabase data exports and one-off imports contain member data.
+supabase/import-workbook.sql
+supabase/backups/
+*.csv
+
+# Local deployment and editor artefacts
+*.zip
+.DS_Store
+Thumbs.db

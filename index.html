@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#176b45">
+    <meta name="description" content="Electrical Open Golf Society">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="scorecard-layout.css">
+    <link rel="stylesheet" href="bottom-nav-tuning.css">
+    <link rel="stylesheet" href="notification-indicator.css">
+    <link rel="stylesheet" href="password-management.css">
+    <title>Electrical Open Golf Society</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#home" aria-label="Electrical Open home"><span class="flag" aria-hidden="true">⚑</span><span>Electrical Open</span></a>
+        <div class="account-actions"><a class="admin-quick" href="#admin" id="admin-quick" hidden>Admin</a><button class="profile-button" type="button" aria-label="Choose player" id="player-button"><span id="initials">EO</span></button><span class="notification-indicator" id="notification-indicator" role="img" aria-label="Fixture notifications enabled" hidden>🔔</span><button class="signout-button" type="button" id="signout-button" hidden>Sign out</button></div>
+      </header>
+      <main id="app" tabindex="-1"></main>
+      <nav class="bottom-nav" aria-label="Main navigation" id="main-nav" hidden>
+        <a href="#home" data-route="home"><span aria-hidden="true">⌂</span>Home</a>
+        <a href="#handicap" data-route="handicap"><span aria-hidden="true">⌁</span>Handicap</a>
+        <a href="#scorecard" data-route="scorecard" id="scorecard-nav"><span aria-hidden="true">✎</span>Scorecard</a>
+        <a href="#fixtures" data-route="fixtures"><span aria-hidden="true">□</span>Fixtures</a>
+        <a href="#merit" data-route="merit"><span aria-hidden="true">★</span>Merit</a>
+        <a href="#admin" data-route="admin" id="admin-nav" class="legacy-admin-nav" hidden><span aria-hidden="true">⚙</span>Admin</a>
+      </nav>
+    </div>
+    <dialog id="player-dialog">
+      <form method="dialog" class="dialog-panel">
+        <div class="dialog-heading"><h2>Choose a player</h2><button value="cancel" aria-label="Close">×</button></div>
+        <label for="player-select">Viewing as</label>
+        <select id="player-select"></select>
+        <button class="primary" value="default" id="confirm-player">Continue</button>
+        <button class="secondary" type="button" id="notification-button">Enable fixture notifications</button>
+      </form>
+    </dialog>
+    <dialog id="password-dialog">
+      <section class="dialog-panel"><div class="dialog-heading"><h2 id="password-title">Reset password</h2><button type="button" id="password-close" aria-label="Close">×</button></div><p class="intro" id="password-intro"></p><form class="password-form" id="password-form"><label id="reset-email-label">Email<input id="reset-email" type="email" autocomplete="email" required></label><label id="reset-code-label">Eight-digit code<input id="reset-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}"></label><label>New password<input id="new-password" type="password" autocomplete="new-password" minlength="12" required></label><label>Confirm new password<input id="confirm-password" type="password" autocomplete="new-password" minlength="12" required></label><p class="form-message" id="password-message"></p><button class="primary" id="password-submit" type="submit">Send reset code</button></form></section>
+    </dialog>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="handicap-engine.js"></script>
+    <script src="app.js"></script>
+    <script src="scorecard-effective-index.js"></script>
+    <script src="fixture-editor.js"></script>
+    <script src="scorecard-layout.js"></script>
+    <script src="profile-selection.js"></script>
+    <script src="fixture-commit.js"></script>
+    <script src="membership-admin.js"></script>
+    <script src="member-invitations.js"></script>
+    <script src="admin-access-guard.js"></script>
+    <script src="fixture-home-sections.js"></script>
+    <script src="member-paired-scorecards.js"></script>
+    <script src="notifications.js"></script>
+    <script src="password-management.js"></script>
+  </body>
+</html>

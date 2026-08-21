@@ -1,0 +1,149 @@
+(() => {
+  let active = null, saveTimer;
+  const fixtureFor = id => state.fixtures.find(item => item.id === id);
+  const participant = (fixtureId, playerId) => (state.fixtureParticipants || []).find(item => item.fixture_id === fixtureId && item.player_id === playerId);
+  const nearestHandicap = value => value < 0 ? Math.ceil(value - .5) : Math.floor(value + .5);
+  const courseHandicapFor = (index, course) => nearestHandicap((Number(index) * Number(course.slope_rating) / 113) + Number(course.course_rating) - Number(course.par));
+  const playingHandicapFor = (index, fixture, course) => Math.min(28, nearestHandicap(courseHandicapFor(index, course) * Number(fixture.handicap_allowance || 1)));
+  const indexFor = (fixtureId, playerId) => {
+    const override = participant(fixtureId, playerId)?.handicap_index_override;
+    if (override != null) return Number(override);
+    const person = state.memberDirectory.find(item => item.id === playerId);
+    const society = state.snapshots.find(item => item.player_id === playerId)?.index_value;
+    const values = [society, person?.club_handicap].filter(value => value != null).map(Number);
+    return values.length ? Math.min(...values) : null;
+  };
+  const strokesAt = (playing, si) => Math.floor(playing / 18) + (si <= playing % 18 ? 1 : 0);
+  const scores = key => [...document.querySelectorAll(`[data-paired-score="${key}"]`)].map(input => input.value === '' ? null : Number(input.value));
+  const complete = values => values.length === 18 && values.every(value => Number.isInteger(value) && value >= 1 && value <= 20);
+  const displayName = person => `${person?.first_name || ''} ${person?.surname || ''}`.trim();
+
+  const updateCalculations = () => {
+    const summary = document.querySelector('#paired-index-summary');
+    try {
+      const fixture = fixtureFor(active?.fixture_id), course = setup(fixture?.course_setup_id), current = player(), markedId = document.querySelector('#paired-player-a')?.value;
+      if (!fixture || !course || !current) throw new Error('fixture, course, or signed-in player is missing');
+      const ownIndex = indexFor(fixture.id, current.id), markedIndex = markedId && indexFor(fixture.id, markedId), ownPlaying = ownIndex == null ? null : playingHandicapFor(ownIndex, fixture, course), markedPlaying = markedIndex == null ? null : playingHandicapFor(markedIndex, fixture, course);
+      if (summary) summary.textContent = `You: ${ownIndex?.toFixed(1) ?? '—'} index · ${ownPlaying ?? '—'} playing | Player A: ${markedIndex?.toFixed(1) ?? '—'} index · ${markedPlaying ?? '—'} playing`;
+      const ownScores = scores('own'), markedScores = scores('marked');
+      let ownTotal = 0, markedTotal = 0;
+      holes(course.id).forEach((hole, index) => {
+        const own = ownScores[index], marked = markedScores[index];
+        const ownPoints = own == null || ownPlaying == null ? null : Math.max(0, 2 + Number(hole.par) - (own - strokesAt(ownPlaying, hole.stroke_index)));
+        const markedPoints = marked == null || markedPlaying == null ? null : Math.max(0, 2 + Number(hole.par) - (marked - strokesAt(markedPlaying, hole.stroke_index)));
+        ownTotal += ownPoints || 0; markedTotal += markedPoints || 0;
+        const ownCell = document.querySelector(`[data-paired-points="own-${index + 1}"]`), markedCell = document.querySelector(`[data-paired-points="marked-${index + 1}"]`);
+        if (ownCell) ownCell.textContent = ownPoints ?? '—';
+        if (markedCell) markedCell.textContent = markedPoints ?? '—';
+      });
+      const ownTotalCell = document.querySelector('#paired-own-total'), markedTotalCell = document.querySelector('#paired-marked-total');
+      if (ownTotalCell) ownTotalCell.textContent = ownScores.some(value => value != null) ? ownTotal : '—';
+      if (markedTotalCell) markedTotalCell.textContent = markedScores.some(value => value != null) ? markedTotal : '—';
+    } catch (error) {
+      console.error('Paired scorecard calculation failed:', error);
+      if (summary) summary.textContent = `Points unavailable: ${error.message}`;
+    }
+  };
+
+  const compare = async () => {
+    const target = document.querySelector('#paired-comparison');
+    if (!target || !active?.marked_player_id || active.marked_status !== 'submitted') return;
+    const { data } = await client.from('member_scorecards').select('own_scores, own_status').eq('fixture_id', active.fixture_id).eq('scorer_player_id', active.marked_player_id).maybeSingle();
+    if (data?.own_status !== 'submitted') return void (target.textContent = 'Waiting for Player A to submit their own card.');
+    const different = data.own_scores.map((value, index) => Number(value) === Number(active.marked_scores?.[index]) ? null : index + 1).filter(Boolean);
+    target.className = `paired-comparison ${different.length ? 'paired-difference' : 'paired-match'}`;
+    target.textContent = different.length ? `Check required: scores differ on hole${different.length === 1 ? '' : 's'} ${different.join(', ')}.` : 'Confirmed: Player A’s submitted card matches your marker card.';
+  };
+
+  const draw = () => {
+    const target = document.querySelector('#member-paired-scorecard'), fixture = fixtureFor(active?.fixture_id), course = setup(fixture?.course_setup_id), current = player();
+    if (!target || !fixture || !course || !current) return;
+    const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixture.id && item.player_id !== current.id).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
+    const ownLocked = active.own_status === 'submitted', markedLocked = active.marked_status === 'submitted', card = holes(course.id);
+    target.innerHTML = `<section class="section paired-scorecard-section"><div class="section-head"><h2>Paired scorecard</h2><span class="pill">${ownLocked && markedLocked ? 'Submitted' : 'Draft'}</span></div><p class="intro">Record your score and one other participant’s score. Drafts save automatically.</p><label class="paired-player-picker">Player A to mark<select id="paired-player-a" ${markedLocked ? 'disabled' : ''}><option value="">Choose Player A</option>${people.map(item => `<option value="${item.player_id}" ${item.player_id === active.marked_player_id ? 'selected' : ''}>${esc(displayName(item.players))}</option>`).join('')}</select></label><p class="paired-index-summary" id="paired-index-summary"></p><div class="table-responsive"><table class="table paired-scorecard-table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th><th>Me<br><small>shots</small></th><th>Me<br><small>pts</small></th><th>A<br><small>shots</small></th><th>A<br><small>pts</small></th></tr></thead><tbody>${card.map((hole, index) => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td><td><input data-paired-score="own" type="number" min="1" max="20" inputmode="numeric" value="${active.own_scores?.[index] ?? ''}" ${ownLocked ? 'disabled' : ''}></td><td data-paired-points="own-${index + 1}">—</td><td><input data-paired-score="marked" type="number" min="1" max="20" inputmode="numeric" value="${active.marked_scores?.[index] ?? ''}" ${markedLocked ? 'disabled' : ''}></td><td data-paired-points="marked-${index + 1}">—</td></tr>${hole.hole_number === 9 ? '<tr class="front-nine-subtotal"><td><strong>Out</strong></td><td colspan="2"></td><td></td><td id="paired-own-total">—</td><td></td><td id="paired-marked-total">—</td></tr>' : ''}`).join('')}</tbody></table></div><div class="paired-actions"><button class="secondary" type="button" id="paired-save">Save draft</button><button class="primary" type="button" id="paired-submit" ${ownLocked && markedLocked ? 'disabled' : ''}>Review & submit</button></div><p class="paired-message" id="paired-message"></p><p class="paired-comparison" id="paired-comparison">Choose Player A before submitting. Points appear once a Player A is selected.</p></section>`;
+    updateCalculations(); compare();
+    document.querySelector('#paired-player-a')?.addEventListener('change', async event => {
+      active.own_scores = scores('own');
+      active.marked_player_id = event.target.value || null;
+      active.marked_scores = [];
+      draw();
+      await save(false);
+    });
+    document.querySelectorAll('[data-paired-score]').forEach(input => input.addEventListener('input', () => { updateCalculations(); clearTimeout(saveTimer); saveTimer = setTimeout(() => save(false), 700); }));
+    document.querySelector('#paired-save')?.addEventListener('click', () => save(false));
+    document.querySelector('#paired-submit')?.addEventListener('click', () => save(true));
+  };
+
+  const save = async submit => {
+    const fixture = fixtureFor(active?.fixture_id), course = setup(fixture?.course_setup_id), current = player();
+    if (!fixture || !course || !current) return;
+    const own = scores('own'), marked = scores('marked');
+    if (submit && (!active.marked_player_id || !complete(own) || !complete(marked))) return message('Choose Player A and enter all 18 scores for both cards before submitting.', true);
+    if (submit && !window.confirm('Confirm both scorecards with your playing partner before submission. Submitted cards are locked.')) return;
+    const ownIndex = indexFor(fixture.id, current.id), markedIndex = active.marked_player_id && indexFor(fixture.id, active.marked_player_id);
+    const payload = { fixture_id: fixture.id, scorer_player_id: current.id, marked_player_id: active.marked_player_id, own_scores: own, marked_scores: marked, own_handicap_index: ownIndex, own_course_handicap: ownIndex == null ? null : courseHandicapFor(ownIndex, course), own_playing_handicap: ownIndex == null ? null : playingHandicapFor(ownIndex, fixture, course), marked_handicap_index: markedIndex, marked_course_handicap: markedIndex == null ? null : courseHandicapFor(markedIndex, course), marked_playing_handicap: markedIndex == null ? null : playingHandicapFor(markedIndex, fixture, course), own_status: submit ? 'submitted' : active.own_status, marked_status: submit ? 'submitted' : active.marked_status };
+    const { data, error } = await client.from('member_scorecards').upsert(payload, { onConflict: 'fixture_id,scorer_player_id' }).select().single();
+    if (error) return message(error.message, true);
+    active = data;
+    if (submit) {
+      draw();
+    } else {
+      const status = document.querySelector('#paired-message');
+      if (status) status.textContent = 'Draft saved.';
+    }
+  };
+
+  const open = async fixtureId => {
+    const current = player(); if (!current) return;
+    const { data, error } = await client.from('member_scorecards').select('*').eq('fixture_id', fixtureId).eq('scorer_player_id', current.id).maybeSingle();
+    if (error) return message(error.message, true);
+    active = data || { fixture_id: fixtureId, scorer_player_id: current.id, marked_player_id: null, own_scores: [], marked_scores: [], own_status: 'draft', marked_status: 'draft' };
+    draw();
+  };
+
+  const originalFixtures = fixtures;
+  fixtures = function (fixtureId) {
+    const markup = originalFixtures(fixtureId), fixture = fixtureFor(fixtureId), current = player(), course = fixture && setup(fixture.course_setup_id);
+    const eligible = fixture?.member_scoring_enabled && current && participant(fixture.id, current.id) && course && holes(course.id).length === 18;
+    return eligible ? `${markup}<section class="section member-scorecard-entry"><h2>Enter your paired scorecard</h2><p>Record your own score and Player A’s score on the same card.</p><button class="primary" type="button" data-open-paired-scorecard="${fixture.id}">Open scorecard</button></section>` : markup;
+  };
+  document.addEventListener('click', event => { const button = event.target.closest('[data-open-paired-scorecard]'); if (button) location.hash = `#scorecard/${button.dataset.openPairedScorecard}`; });
+  const addAdminControl = () => {
+    const panel = document.querySelector('#app .admin-panel');
+    if (!state.isStaff || location.hash !== '#admin/scores' || !panel || document.querySelector('#member-scoring-control')) return;
+    const options = state.fixtures.filter(fixture => !['completed', 'published', 'archived'].includes(fixture.status)).map(fixture => `<option value="${fixture.id}">${date(fixture.fixture_date)} · ${esc(fixture.name)}${fixture.member_scoring_enabled ? ' (enabled)' : ''}</option>`).join('');
+    panel.insertAdjacentHTML('afterbegin', `<div class="admin-card" id="member-scoring-control"><h2>Member paired scorecards</h2><p>Enable this only after the fixture participants, tee, and 18-hole scorecard are ready. Members can then save drafts and submit their own card plus Player A’s card.</p><form class="admin-form" id="member-scoring-form"><label>Fixture<select name="fixture_id" required><option value="">Select fixture</option>${options}</select></label><label class="checkbox-label"><input name="enabled" type="checkbox"> Enable member score entry</label><button class="secondary" type="submit">Save member scorecard setting</button></form></div>`);
+    document.querySelector('#member-scoring-form')?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget), fixtureId = form.get('fixture_id'), enabled = form.get('enabled') === 'on';
+      const { error } = await client.from('fixtures').update({ member_scoring_enabled: enabled }).eq('id', fixtureId);
+      if (error) return message(error.message, true);
+      await load(); location.hash = '#admin/scores'; message(enabled ? 'Member paired scorecards enabled for this fixture.' : 'Member paired scorecards disabled for this fixture.');
+    });
+  };
+  new MutationObserver(addAdminControl).observe(document.querySelector('#app'), { childList: true, subtree: true });
+  const originalLoad = load;
+  load = async function () { await originalLoad(); const { data, error } = await client.from('fixtures').select('id, member_scoring_enabled'); if (!error) { const enabled = new Map((data || []).map(item => [item.id, item.member_scoring_enabled])); state.fixtures.forEach(fixture => { fixture.member_scoring_enabled = Boolean(enabled.get(fixture.id)); }); render(); addAdminControl(); } };
+  const originalRender = render;
+  render = function () {
+    if ((location.hash || '#home').startsWith('#scorecard')) {
+      const current = player();
+      const requestedId = location.hash.split('/')[1];
+      const eligible = state.fixtures.filter(item => item.member_scoring_enabled && current && participant(item.id, current.id));
+      const fixture = (requestedId ? eligible.find(item => item.id === requestedId) : null) || eligible.sort((a, b) => `${a.fixture_date}${a.tee_time || ''}`.localeCompare(`${b.fixture_date}${b.tee_time || ''}`))[0];
+      if (!fixture) {
+        app.innerHTML = '<p class="eyebrow">Scorecard</p><h1>No scorecard ready</h1><p class="intro">A scorecard becomes available once an administrator has enabled it for a fixture you are playing in.</p>';
+      } else {
+        app.innerHTML = `<p class="eyebrow">${date(fixture.fixture_date)}</p><h1>${esc(fixture.name)}${fixture.competition_name ? ` – ${esc(fixture.competition_name)}` : ''}</h1><p class="intro"><a class="text-link" href="#fixtures/${fixture.id}">Back to fixture</a></p><div id="member-paired-scorecard"></div>`;
+        setTimeout(() => open(fixture.id), 0);
+      }
+      document.querySelectorAll('.bottom-nav a').forEach(anchor => anchor.classList.toggle('active', anchor.dataset.route === 'scorecard'));
+      return;
+    }
+    originalRender();
+  };
+  window.addEventListener('hashchange', () => {
+    if (location.hash.startsWith('#scorecard')) render();
+  });
+  addAdminControl();
+})();

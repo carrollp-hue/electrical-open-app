@@ -1,0 +1,6 @@
+.front-nine-subtotal td {
+  padding-top: 17px;
+  padding-bottom: 17px;
+  border-top: 8px solid var(--wash);
+  color: var(--green);
+}

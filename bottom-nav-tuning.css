@@ -1,0 +1,19 @@
+.app-shell {
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+}
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(78px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: translateZ(0);
+}
+
+.bottom-nav a span {
+  font-size: 1.65rem;
+  line-height: 1;
+}

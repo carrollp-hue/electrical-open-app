@@ -1,0 +1,16 @@
+const CACHE = "electrical-open-v77";
+const ASSETS = ["./index.html", "./reset-password.html", "./styles.css", "./scorecard-layout.css", "./bottom-nav-tuning.css", "./notification-indicator.css", "./password-management.css", "./app.js", "./scorecard-effective-index.js", "./fixture-editor.js", "./scorecard-layout.js", "./profile-selection.js", "./fixture-commit.js", "./membership-admin.js", "./member-invitations.js", "./admin-access-guard.js", "./fixture-home-sections.js", "./member-paired-scorecards.js", "./notifications.js", "./password-management.js", "./reset-password.js", "./supabase-config.js", "./manifest.webmanifest", "./icon.svg"];
+self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
+self.addEventListener("activate", event => event.waitUntil(Promise.all([
+  self.clients.claim(),
+  caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+])));
+self.addEventListener("fetch", event => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).catch(() => caches.match('./index.html')));
+    return;
+  }
+  event.respondWith(caches.open(CACHE).then(cache => cache.match(event.request)).then(hit => hit || fetch(event.request)));
+});
+self.addEventListener('push', event => { const data = event.data?.json() || {}; event.waitUntil(self.registration.showNotification(data.title || 'Electrical Open', { body: data.body || '', icon: './icon.svg', badge: './icon.svg', data: { url: data.url || '/#home' } })); });
+self.addEventListener('notificationclick', event => { event.notification.close(); event.waitUntil(clients.openWindow(event.notification.data?.url || '/#home')); });
