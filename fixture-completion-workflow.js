@@ -58,7 +58,9 @@
       const result = official ? { gross: official.gross_score, nett: official.nett_score, points: official.stableford_points, position: official.competition_position, oom: fixture.status === 'completed' ? official.order_of_merit_points : '—' } : totals ? { gross: totals.gross, nett: totals.nett, points: totals.points, position: '—', oom: '—' } : { gross: '—', nett: '—', points: '—', position: '—', oom: '—' };
       const rowClass = provisional?.conflict ? 'provisional-result provisional-conflict' : provisional && !provisional.verified ? 'provisional-result' : '';
       const flag = provisional?.conflict ? ' <span class="result-warning" title="Submitted scores differ">!</span>' : '';
-      return `<tr class="${rowClass}"><td>${result.position ?? '—'}</td><td>${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}${flag}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${index == null ? '—' : playingFor(fixture, course, item.player_id)}</td><td>${result.gross == null ? 'NR' : result.gross}</td><td>${result.nett ?? '—'}</td><td>${result.points ?? '—'}</td><td>${result.oom}</td></tr>`;
+      const playerName = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`;
+      const playerCell = official?.id ? `<a class="text-link" href="#scorecard/${official.id}">${playerName}</a>` : playerName;
+      return `<tr class="${rowClass}"><td>${result.position ?? '—'}</td><td>${playerCell}${flag}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${index == null ? '—' : playingFor(fixture, course, item.player_id)}</td><td>${result.gross == null ? 'NR' : result.gross}</td><td>${result.nett ?? '—'}</td><td>${result.points ?? '—'}</td><td>${result.oom}</td></tr>`;
     }).join('');
     table.querySelector('tbody').innerHTML = rows;
     if (!document.querySelector('#live-results-note')) table.insertAdjacentHTML('afterend', '<p class="intro" id="live-results-note">Submitted member scores are provisional until verified. A red ! means the submitted cards differ. Order of Merit points are awarded only when the fixture is committed.</p>');
