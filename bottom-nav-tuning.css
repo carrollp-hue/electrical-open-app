@@ -17,3 +17,100 @@
   font-size: 1.65rem;
   line-height: 1;
 }
+
+/* A phone held sideways has much more usable width than the portrait shell. */
+@media (orientation: landscape) {
+  body {
+    padding: 0;
+  }
+
+  .app-shell {
+    width: 100%;
+    max-width: none;
+    min-height: 100dvh;
+    border-radius: 0;
+    padding-bottom: calc(74px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    height: 58px;
+    padding: 10px 26px;
+  }
+
+  main {
+    width: min(100%, 980px);
+    margin: 0 auto;
+    padding: 18px 32px 24px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  .intro,
+  .fixture strong,
+  .list-row strong,
+  .table,
+  .paired-player-picker,
+  .paired-index-summary,
+  .paired-message,
+  .paired-comparison {
+    font-size: 1rem;
+  }
+
+  .fixture span,
+  .list-row span,
+  .index-note,
+  .admin-card p {
+    font-size: .9rem;
+  }
+
+  .index-card {
+    margin: 14px 0;
+    padding: 16px 22px;
+  }
+
+  .index-card .index {
+    font-size: 3.7rem;
+  }
+
+  .section {
+    margin-top: 18px;
+  }
+
+  .bottom-nav {
+    height: calc(66px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav a {
+    max-width: 150px;
+    padding: 5px 8px;
+    font-size: .8rem;
+  }
+
+  .bottom-nav a span {
+    font-size: 1.45rem;
+  }
+
+  .paired-scorecard-table {
+    font-size: 1rem;
+  }
+
+  .paired-scorecard-table th {
+    font-size: .76rem;
+  }
+
+  .paired-scorecard-table input {
+    width: 52px;
+    padding: 8px 2px;
+    font-size: 1rem;
+  }
+
+  .course-scorecard-halves {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+}
