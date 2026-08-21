@@ -99,4 +99,5 @@
 .pcc-section h3 { margin: 0 0 .2rem; font-size: .95rem; }
 .pcc-section p { margin: 0 0 .75rem; font-size: .8rem; }
 .scorecard-out-repeat td { border-top: 1px solid var(--line, #28513f); }
+.paired-scorecard-table .scorecard-out-repeat td { border-top: 1px solid var(--line, #28513f); }
 @media (max-width: 520px) { .finish-check-row { align-items: flex-start; flex-direction: column; } .finish-ok { text-align: left; } }

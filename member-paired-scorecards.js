@@ -64,6 +64,10 @@
         set('marked-shots', value.markedEntered ? value.markedShots : '—');
         set('marked-points', value.markedEntered ? value.markedPoints : '—');
       });
+      ['par', 'own-shots', 'own-points', 'marked-shots', 'marked-points'].forEach(field => {
+        const source = document.querySelector(`#paired-out-${field}`), target = document.querySelector(`#paired-out-repeat-${field}`);
+        if (source && target) target.textContent = source.textContent;
+      });
     } catch (error) {
       console.error('Paired scorecard calculation failed:', error);
       if (summary) summary.textContent = `Points unavailable: ${error.message}`;
@@ -111,11 +115,11 @@
     const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixture.id && item.player_id !== current.id).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
     const ownLocked = active.own_status === 'submitted', markedLocked = active.marked_status === 'submitted', card = holes(course.id);
     target.innerHTML = `<section class="section paired-scorecard-section"><div class="section-head"><h2>Paired scorecard</h2><span class="pill">${ownLocked && markedLocked ? 'Submitted' : 'Draft'}</span></div><p class="intro">Record your score and one other participant’s score. Drafts save automatically.</p><label class="paired-player-picker">Player A to mark<select id="paired-player-a" ${markedLocked ? 'disabled' : ''}><option value="">Choose Player A</option>${people.map(item => `<option value="${item.player_id}" ${item.player_id === active.marked_player_id ? 'selected' : ''}>${esc(displayName(item.players))}</option>`).join('')}</select></label><p class="paired-index-summary" id="paired-index-summary"></p><div class="table-responsive"><table class="table paired-scorecard-table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th><th>Me<br><small>shots</small></th><th>Me<br><small>pts</small></th><th>A<br><small>shots</small></th><th>A<br><small>pts</small></th></tr></thead><tbody>${card.map((hole, index) => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td><td><input data-paired-score="own" type="number" min="1" max="20" inputmode="numeric" value="${active.own_scores?.[index] ?? ''}" ${ownLocked ? 'disabled' : ''}></td><td data-paired-points="own-${index + 1}">—</td><td><input data-paired-score="marked" type="number" min="1" max="20" inputmode="numeric" value="${active.marked_scores?.[index] ?? ''}" ${markedLocked ? 'disabled' : ''}></td><td data-paired-points="marked-${index + 1}">—</td></tr>${hole.hole_number === 9 ? '<tr class="front-nine-subtotal"><td><strong>Out</strong></td><td colspan="2"></td><td></td><td id="paired-own-total">—</td><td></td><td id="paired-marked-total">—</td></tr>' : ''}`).join('')}</tbody></table></div><div class="paired-actions"><button class="secondary" type="button" id="paired-save">Save draft</button><button class="primary" type="button" id="paired-submit" ${ownLocked && markedLocked ? 'disabled' : ''}>Review & submit</button></div><p class="paired-message" id="paired-message"></p><p class="paired-comparison" id="paired-comparison">Choose Player A before submitting. Points appear once a Player A is selected.</p></section>`;
-    const subtotalRow = (label, key) => `<tr class="${key === 'out' ? 'front-nine-subtotal ' : ''}paired-scorecard-subtotal ${key === 'total' ? 'paired-scorecard-total' : ''}"><td><strong>${label}</strong></td><td id="paired-${key}-par">—</td><td></td><td id="paired-${key}-own-shots">—</td><td id="paired-${key}-own-points">—</td><td id="paired-${key}-marked-shots">—</td><td id="paired-${key}-marked-points">—</td></tr>`;
+    const subtotalRow = (label, key) => `<tr class="${key === 'out' ? 'front-nine-subtotal ' : ''}${key === 'out-repeat' ? 'scorecard-out-repeat ' : ''}paired-scorecard-subtotal ${key === 'total' ? 'paired-scorecard-total' : ''}"><td><strong>${label}</strong></td><td id="paired-${key}-par">—</td><td></td><td id="paired-${key}-own-shots">—</td><td id="paired-${key}-own-points">—</td><td id="paired-${key}-marked-shots">—</td><td id="paired-${key}-marked-points">—</td></tr>`;
     const outRow = target.querySelector('.front-nine-subtotal');
     if (outRow) outRow.outerHTML = subtotalRow('Out', 'out');
     const eighteenth = [...target.querySelectorAll('tbody tr')].find(row => row.cells[0]?.textContent.trim() === '18');
-    if (eighteenth) eighteenth.insertAdjacentHTML('afterend', `${subtotalRow('In', 'in')}${subtotalRow('Total', 'total')}`);
+    if (eighteenth) eighteenth.insertAdjacentHTML('afterend', `${subtotalRow('In', 'in')}${subtotalRow('Out', 'out-repeat')}${subtotalRow('Total', 'total')}`);
     const marked = people.find(item => item.player_id === active.marked_player_id)?.players;
     const ownInitials = initialsFor(current), markedInitials = marked ? initialsFor(marked) : '—';
     const ownLabel = marked && ownInitials === markedInitials ? `${ownInitials} (me)` : ownInitials;
@@ -226,6 +230,7 @@
       const current = player();
       const requestedId = location.hash.split('/')[1];
       const eligible = state.fixtures.filter(item => item.member_scoring_enabled && current && participant(item.id, current.id));
+      if (requestedId && !eligible.some(item => item.id === requestedId)) return originalRender();
       const fixture = (requestedId ? eligible.find(item => item.id === requestedId) : null) || eligible.sort((a, b) => `${a.fixture_date}${a.tee_time || ''}`.localeCompare(`${b.fixture_date}${b.tee_time || ''}`))[0];
       if (!fixture) {
         app.innerHTML = '<p class="eyebrow">Scorecard</p><h1>No scorecard ready</h1><p class="intro">A scorecard becomes available once an administrator has enabled it for a fixture you are playing in.</p>';
