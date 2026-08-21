@@ -113,10 +113,18 @@
       setTimeout(() => { playerSelect.value = (score || nr).dataset.finishScore || (score || nr).dataset.finishNr; playerSelect.dispatchEvent(new Event('change')); playerSelect.closest('form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 0);
     });
   };
-  const refresh = () => { improveFinishWorkflow(); const id = currentFixtureId(); if (id) setTimeout(() => hydrateLiveResults(id), 0); };
+  const refresh = () => {
+    try {
+      improveFinishWorkflow();
+      const id = currentFixtureId();
+      if (id) setTimeout(() => hydrateLiveResults(id), 0);
+    } catch (error) {
+      console.error('Fixture completion workflow could not initialise:', error);
+    }
+  };
   const originalRender = render;
   render = function () { originalRender(); refresh(); };
   window.addEventListener('hashchange', refresh);
-  new MutationObserver(improveFinishWorkflow).observe(document.querySelector('#app'), { childList: true, subtree: true });
+  new MutationObserver(refresh).observe(document.querySelector('#app'), { childList: true, subtree: true });
   refresh();
 })();
