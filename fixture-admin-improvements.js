@@ -141,7 +141,17 @@
       if (participant && row.children[playingColumn] && row.children[playingColumn].textContent !== String(participant.playing_handicap_override)) row.children[playingColumn].textContent = participant.playing_handicap_override;
     });
   };
-  const wire = () => { renameTabs(); improveCourseTab(); improveParticipantTab(); applyFixturePlayingOverrides(); };
+  let wiring = false;
+  const wire = () => {
+    if (wiring) return;
+    wiring = true;
+    renameTabs();
+    improveCourseTab();
+    improveParticipantTab();
+    applyFixturePlayingOverrides();
+    // Ignore mutations created by the small presentation changes above.
+    setTimeout(() => { wiring = false; }, 0);
+  };
   const baseLoad = load;
   load = async function () { await baseLoad(); await enrichDirectory(); render(); };
   new MutationObserver(wire).observe(document.querySelector('#app'), { childList: true, subtree: true });
