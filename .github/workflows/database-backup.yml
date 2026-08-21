@@ -14,14 +14,14 @@ jobs:
     name: Export and encrypt database
     runs-on: ubuntu-latest
     env:
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
       BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
       BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
     steps:
       - name: Validate backup configuration
         run: |
-          test -n "$SUPABASE_DB_URL"
+          test -n "$SUPABASE_DB_PASSWORD"
           test -n "$BACKUP_PASSPHRASE"
           test -n "$BACKUP_REPOSITORY"
           test -n "$BACKUP_REPO_TOKEN"
@@ -33,6 +33,10 @@ jobs:
 
       - name: Export roles, schema and data
         run: |
+          # Build the session-pooler URL here so the project username stays
+          # correct and password punctuation is safely URL-encoded.
+          encoded_password="$(node -p 'encodeURIComponent(process.env.SUPABASE_DB_PASSWORD)')"
+          export SUPABASE_DB_URL="postgresql://postgres.xwzrtbjlztdtxvwckqrl:${encoded_password}@aws-0-eu-west-2.pooler.supabase.com:5432/postgres"
           mkdir -p backup
           supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
           supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
