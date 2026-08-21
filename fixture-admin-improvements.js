@@ -40,12 +40,10 @@
     message('Fixture handicap override saved.');
   };
 
-  const addReturningGuest = async event => {
-    event.preventDefault();
-    const button = event.submitter;
-    if (!button?.value) return;
-    const form = event.currentTarget, fixtureId = new FormData(form).get('fixture_id'), person = state.memberDirectory.find(item => item.id === button.value);
-    const index = decimalOrNull(button.dataset.index);
+  const addReturningGuest = async (fixtureId, playerId, savedIndex) => {
+    const person = state.memberDirectory.find(item => item.id === playerId);
+    if (!person) return;
+    const index = decimalOrNull(savedIndex);
     const { error } = await client.from('fixture_participants').upsert({ fixture_id: fixtureId, player_id: person.id, handicap_index_override: index, is_guest: true }, { onConflict: 'fixture_id,player_id' });
     if (error) return message(error.message, true);
     await load(); location.hash = '#admin/participants'; message(`${person.first_name} ${person.surname} added using their saved guest index.`);
@@ -88,19 +86,43 @@
     const fixture = state.fixtures.find(item => item.id === fixtureId), course = setup(fixture?.course_setup_id);
     const selected = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixtureId).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
     const card = document.createElement('div'); card.className = 'admin-card'; card.id = 'participant-handicap-overrides';
-    card.innerHTML = `<h2>Fixture handicaps</h2><p>Current index is shown for reference. Optional overrides apply to this fixture only; leave a field blank to use the current calculation.</p><div class="table-responsive"><table class="table"><thead><tr><th>Player</th><th>Current index</th><th>Fixture index</th><th>Playing</th><th>Override</th></tr></thead><tbody>${selected.map(item => { const person = state.memberDirectory.find(member => member.id === item.player_id) || item.players, current = currentIndex(person), index = item.handicap_index_override ?? current, calculated = course && index != null ? playingHandicap(index, fixture, course) : null, playing = item.playing_handicap_override ?? calculated; return `<tr><td>${escHtml(person?.first_name)} ${escHtml(person?.surname)}${item.is_guest ? ' (Guest)' : ''}</td><td>${current == null ? '—' : Number(current).toFixed(1)}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${playing ?? '—'}</td><td><form class="fixture-override-form"><input type="hidden" name="fixture_id" value="${fixtureId}"><input type="hidden" name="player_id" value="${item.player_id}"><input name="handicap_index_override" type="number" min="-10" max="54" step="0.1" placeholder="Index" value="${item.handicap_index_override ?? ''}"><input name="playing_handicap_override" type="number" min="-10" max="28" step="1" placeholder="Playing" value="${item.playing_handicap_override ?? ''}"><button class="secondary" type="submit">Save</button></form></td></tr>`; }).join('') || '<tr><td colspan="5">No participants selected.</td></tr>'}</tbody></table></div>`;
+    card.innerHTML = `<h2>Fixture index overrides</h2><p>Current index is shown for reference. An override applies only to this fixture; leave it blank to use the current index. Playing handicap is then calculated automatically.</p><div class="table-responsive"><table class="table"><thead><tr><th>Player</th><th>Current index</th><th>Override index</th></tr></thead><tbody>${selected.map(item => { const person = state.memberDirectory.find(member => member.id === item.player_id) || item.players, current = currentIndex(person); return `<tr><td>${escHtml(person?.first_name)} ${escHtml(person?.surname)}${item.is_guest ? ' (Guest)' : ''}</td><td>${current == null ? '—' : Number(current).toFixed(1)}</td><td><form class="fixture-override-form"><input type="hidden" name="fixture_id" value="${fixtureId}"><input type="hidden" name="player_id" value="${item.player_id}"><input name="handicap_index_override" type="number" min="-10" max="54" step="0.1" placeholder="Override index" value="${item.handicap_index_override ?? ''}"><button class="secondary" type="submit">Save</button></form></td></tr>`; }).join('') || '<tr><td colspan="3">No participants selected.</td></tr>'}</tbody></table></div>`;
     const selectedCard = [...document.querySelectorAll('.admin-card')].find(item => item.querySelector('h2')?.textContent === 'Selected participants');
     selectedCard?.insertAdjacentElement('afterend', card);
     card.querySelectorAll('.fixture-override-form').forEach(form => form.addEventListener('submit', saveOverride));
     const guests = state.memberDirectory.filter(item => item.is_guest && !selected.some(entry => entry.player_id === item.id)).sort((a,b) => a.surname.localeCompare(b.surname) || a.first_name.localeCompare(b.first_name));
-    if (guests.length) {
-      const returning = document.createElement('div'); returning.className = 'admin-card'; returning.id = 'returning-guest-list';
-      returning.innerHTML = `<h2>Returning guests available to add</h2><p>Guests are retained automatically with their last recorded handicap index.</p><form class="returning-guest-form"><input type="hidden" name="fixture_id" value="${fixtureId}"><table class="table"><tbody>${guests.map(person => `<tr><td>${escHtml(person.surname).toUpperCase()}, ${escHtml(person.first_name)}</td><td>${person.guest_handicap_index == null ? '—' : Number(person.guest_handicap_index).toFixed(1)}</td><td><button class="secondary" type="submit" value="${person.id}" data-index="${person.guest_handicap_index ?? ''}">Add</button></td></tr>`).join('')}</tbody></table></form>`;
-      card.insertAdjacentElement('afterend', returning);
-      returning.querySelector('form').addEventListener('submit', addReturningGuest);
+    const nonMembersCard = [...document.querySelectorAll('.admin-card')].find(item => item.querySelector('h2')?.textContent === 'Non-members available to add');
+    const nonMembersBody = nonMembersCard?.querySelector('tbody');
+    if (guests.length && nonMembersBody) {
+      nonMembersBody.insertAdjacentHTML('beforeend', `<tr class="returning-guest-heading"><td colspan="2"><strong>Returning guests</strong><br><small>Last recorded index is shown for reference.</small></td></tr>${guests.map(person => `<tr><td>${escHtml(person.surname).toUpperCase()}, ${escHtml(person.first_name)} <small>(Guest · ${person.guest_handicap_index == null ? 'index not recorded' : Number(person.guest_handicap_index).toFixed(1)})</small></td><td><button class="secondary" type="button" data-returning-guest="${person.id}" data-index="${person.guest_handicap_index ?? ''}">Add</button></td></tr>`).join('')}`);
+      nonMembersBody.querySelectorAll('[data-returning-guest]').forEach(button => button.addEventListener('click', () => addReturningGuest(fixtureId, button.dataset.returningGuest, button.dataset.index)));
     }
     const guestForm = document.querySelector('#add-guest-form');
     if (guestForm && !guestForm.dataset.reusableGuestReady) { guestForm.dataset.reusableGuestReady = 'true'; guestForm.addEventListener('submit', saveGuest, true); }
+  };
+
+  const makeCollapsible = card => {
+    if (!card || card.dataset.collapsibleReady) return;
+    const heading = card.querySelector('h2');
+    if (!heading) return;
+    card.dataset.collapsibleReady = 'true';
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'secondary'; button.textContent = 'Minimise'; button.style.cssText = 'float:right;margin-left:.5rem;padding:.25rem .55rem;';
+    heading.append(' ', button);
+    const toggle = () => {
+      const collapsed = card.dataset.collapsed === 'true';
+      [...card.children].filter(child => child !== heading).forEach(child => { child.hidden = !collapsed; });
+      card.dataset.collapsed = String(!collapsed);
+      button.textContent = collapsed ? 'Minimise' : 'Expand';
+    };
+    button.addEventListener('click', toggle);
+  };
+
+  const improveAvailableLists = () => {
+    document.querySelectorAll('.admin-card').forEach(card => {
+      const title = card.querySelector('h2')?.textContent || '';
+      if (title === 'Players available to add' || title === 'Non-members available to add' || /members available to add$/.test(title)) makeCollapsible(card);
+    });
   };
 
   const renameTabs = () => {
@@ -148,6 +170,7 @@
     renameTabs();
     improveCourseTab();
     improveParticipantTab();
+    improveAvailableLists();
     applyFixturePlayingOverrides();
     // Ignore mutations created by the small presentation changes above.
     setTimeout(() => { wiring = false; }, 0);
