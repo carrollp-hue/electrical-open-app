@@ -187,9 +187,39 @@
       await load(); location.hash = '#admin/scores'; message(enabled ? 'Member paired scorecards enabled for this fixture.' : 'Member paired scorecards disabled for this fixture.');
     });
   };
-  new MutationObserver(addAdminControl).observe(document.querySelector('#app'), { childList: true, subtree: true });
+  const nameFor = playerId => displayName(state.memberDirectory.find(person => person.id === playerId)) || 'Unknown player';
+  const addReopenControl = () => {
+    const panel = document.querySelector('#app .admin-panel');
+    if (!state.isAdmin || location.hash !== '#admin/scores' || !panel || document.querySelector('#reopen-paired-scorecards')) return;
+    const options = state.fixtures.filter(fixture => !['completed', 'published', 'archived'].includes(fixture.status)).map(fixture => `<option value="${fixture.id}">${date(fixture.fixture_date)} · ${esc(fixture.name)}</option>`).join('');
+    panel.insertAdjacentHTML('beforeend', `<div class="admin-card" id="reopen-paired-scorecards"><h2>Reopen member paired scorecard</h2><p>Use this after a submitted card needs correcting. Reopen only the half that needs amendment; the member can then edit and submit it again.</p><label>Fixture<select id="reopen-paired-fixture"><option value="">Select fixture</option>${options}</select></label><div id="reopen-paired-list" class="reopen-paired-list"><p>Select a fixture to see submitted paired scorecards.</p></div></div>`);
+    const fixtureSelect = document.querySelector('#reopen-paired-fixture');
+    const list = document.querySelector('#reopen-paired-list');
+    const showCards = async fixtureId => {
+      if (!fixtureId || !list) return;
+      list.innerHTML = '<p>Loading submitted paired scorecards…</p>';
+      const { data, error } = await client.from('member_scorecards').select('fixture_id, scorer_player_id, marked_player_id, own_status, marked_status').eq('fixture_id', fixtureId).or('own_status.eq.submitted,marked_status.eq.submitted').order('updated_at', { ascending: false });
+      if (error) { list.innerHTML = '<p>Unable to load paired scorecards.</p>'; return message(error.message, true); }
+      const cards = data || [];
+      list.innerHTML = cards.length ? cards.map(card => `<div class="reopen-scorecard-row"><div><strong>${esc(nameFor(card.scorer_player_id))}</strong><br><small>Marking: ${card.marked_player_id ? esc(nameFor(card.marked_player_id)) : 'No Player A selected'}</small></div><div class="reopen-scorecard-actions">${card.own_status === 'submitted' ? `<button class="secondary" type="button" data-reopen-half="own" data-reopen-fixture="${card.fixture_id}" data-reopen-scorer="${card.scorer_player_id}">Reopen own scores</button>` : '<span class="pill">Own draft</span>'}${card.marked_status === 'submitted' ? `<button class="secondary" type="button" data-reopen-half="marked" data-reopen-fixture="${card.fixture_id}" data-reopen-scorer="${card.scorer_player_id}">Reopen marked scores</button>` : '<span class="pill">Marked draft</span>'}</div></div>`).join('') : '<p>No submitted paired scorecards for this fixture.</p>';
+    };
+    fixtureSelect?.addEventListener('change', event => showCards(event.target.value));
+    list?.addEventListener('click', async event => {
+      const button = event.target.closest('[data-reopen-half]');
+      if (!button) return;
+      const half = button.dataset.reopenHalf, halfLabel = half === 'own' ? 'own scores' : 'marked-player scores';
+      if (!window.confirm(`Reopen these ${halfLabel}? The member will be able to amend and submit this half again.`)) return;
+      button.disabled = true;
+      const { error } = await client.rpc('reopen_member_scorecard_half', { p_fixture_id: button.dataset.reopenFixture, p_scorer_player_id: button.dataset.reopenScorer, p_half: half });
+      if (error) { button.disabled = false; return message(error.message, true); }
+      message(`The ${halfLabel} were reopened. The member can now correct and resubmit them.`);
+      showCards(fixtureSelect?.value);
+    });
+  };
+  const refreshAdminControls = () => { addAdminControl(); addReopenControl(); };
+  new MutationObserver(refreshAdminControls).observe(document.querySelector('#app'), { childList: true, subtree: true });
   const originalLoad = load;
-  load = async function () { await originalLoad(); const { data, error } = await client.from('fixtures').select('id, member_scoring_enabled'); if (!error) { const enabled = new Map((data || []).map(item => [item.id, item.member_scoring_enabled])); state.fixtures.forEach(fixture => { fixture.member_scoring_enabled = Boolean(enabled.get(fixture.id)); }); render(); addAdminControl(); } };
+  load = async function () { await originalLoad(); const { data, error } = await client.from('fixtures').select('id, member_scoring_enabled'); if (!error) { const enabled = new Map((data || []).map(item => [item.id, item.member_scoring_enabled])); state.fixtures.forEach(fixture => { fixture.member_scoring_enabled = Boolean(enabled.get(fixture.id)); }); render(); refreshAdminControls(); } };
   const originalRender = render;
   render = function () {
     if ((location.hash || '#home').startsWith('#scorecard')) {
@@ -211,5 +241,5 @@
   window.addEventListener('hashchange', () => {
     if (location.hash.startsWith('#scorecard')) render();
   });
-  addAdminControl();
+  refreshAdminControls();
 })();

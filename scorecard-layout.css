@@ -74,3 +74,10 @@
 .scorecard-verification h3 { margin: 0 0 7px; font-size: .95rem; }
 .scorecard-verification p, .scorecard-verification ul { margin: 0; padding-left: 18px; }
 .scorecard-verification li + li { margin-top: 6px; }
+
+/* Administrator reopening controls for submitted paired scorecards. */
+.reopen-paired-list { margin-top: .9rem; }
+.reopen-scorecard-row { display: flex; justify-content: space-between; align-items: center; gap: .8rem; padding: .8rem 0; border-bottom: 1px solid var(--line, #28513f); }
+.reopen-scorecard-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
+.reopen-scorecard-actions .secondary { font-size: .82rem; padding: .5rem .65rem; }
+@media (max-width: 520px) { .reopen-scorecard-row { align-items: flex-start; flex-direction: column; } .reopen-scorecard-actions { justify-content: flex-start; } }
