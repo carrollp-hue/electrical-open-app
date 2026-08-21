@@ -79,7 +79,11 @@
     const scores = entryIds.length ? await client.from('hole_scores').select('fixture_entry_id').in('fixture_entry_id', entryIds) : { data: [] };
     const counts = (scores.data || []).reduce((map, item) => map.set(item.fixture_entry_id, (map.get(item.fixture_entry_id) || 0) + 1), new Map());
     const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixtureId).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
-    list.innerHTML = `<h3>Scorecard checklist</h3>${people.map(item => { const entry = entries.get(item.player_id), complete = entry?.score_status === 'completed' && counts.get(entry.id) === 18, nr = entry?.score_status === 'non_return', verification = provisionalCandidates(pairedCards, item.player_id); const status = complete ? 'Manual' : nr ? 'NR' : verification?.conflict ? 'Unverified' : verification?.verified ? 'Verified' : verification ? 'Submitted' : 'Enter score'; const rowClass = verification?.conflict ? ' finish-unverified' : ''; const name = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`; const actions = complete ? `<button class="secondary" type="button" data-finish-score="${item.player_id}">Modify scorecard</button>` : (nr || verification) ? '' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Input scorecard</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`; return `<div class="finish-check-row${rowClass}"><span class="finish-player-status">${name} <b>–</b> ${status}</span>${actions}</div>`; }).join('')}`;
+    const statuses = people.map(item => { const entry = entries.get(item.player_id), complete = entry?.score_status === 'completed' && counts.get(entry.id) === 18, nr = entry?.score_status === 'non_return', verification = provisionalCandidates(pairedCards, item.player_id); return { item, complete, nr, verification, status: complete ? 'Manual' : nr ? 'NR' : verification?.conflict ? 'Unverified' : verification?.verified ? 'Verified' : verification ? 'Submitted' : 'Enter score' }; });
+    const readyToCommit = statuses.every(item => ['Manual', 'NR', 'Verified'].includes(item.status));
+    list.innerHTML = `<h3>Scorecard checklist</h3>${statuses.map(({ item, complete, nr, verification, status }) => { const rowClass = verification?.conflict ? ' finish-unverified' : ''; const name = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`; const actions = complete ? `<button class="secondary" type="button" data-finish-score="${item.player_id}">Modify scorecard</button>` : (nr || verification) ? '' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Input scorecard</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`; return `<div class="finish-check-row${rowClass}"><span class="finish-player-status">${name} <b>–</b> ${status}</span>${actions}</div>`; }).join('')}<p class="finish-commit-note">${readyToCommit ? 'All scorecards meet the acceptance criteria.' : 'Finalize & commit is available once every player is Verified, Manual or NR.'}</p>`;
+    const commitButton = document.querySelector('#commit-fixture-form button[type="submit"]');
+    if (commitButton) commitButton.disabled = !readyToCommit;
   };
   const improveFinishWorkflow = () => {
     const panel = document.querySelector('#app .admin-panel');
@@ -103,7 +107,7 @@
       }
       if (!commitForm.dataset.simplified) {
         commitForm.dataset.simplified = 'true';
-        commitForm.innerHTML = `<input name="fixture_id" id="finish-commit-fixture" type="hidden"><input name="playing_conditions_adjustment" id="finish-commit-pcc" type="hidden" value="0"><button class="primary" type="submit">Finalize & commit fixture</button>`;
+        commitForm.innerHTML = `<input name="fixture_id" id="finish-commit-fixture" type="hidden"><input name="playing_conditions_adjustment" id="finish-commit-pcc" type="hidden" value="0"><button class="primary" type="submit" disabled>Finalize & commit fixture</button>`;
       }
     }
     const select = document.querySelector('#finish-fixture-select');
