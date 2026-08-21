@@ -31,8 +31,8 @@
     const card = document.createElement('div');
     card.className = 'admin-card';
     card.id = 'course-library-card';
-    card.innerHTML = `<h2>Course & tee library</h2>
-      <p>Select the course, photograph its blank scorecard, then review the detected tee, ratings and holes before saving a dated version.</p>
+    card.innerHTML = `<h2>Scorecard Scan/Upload</h2>
+      <p>Select the course, photograph or upload its blank scorecard, then review the detected tee, ratings and holes before saving a dated version.</p>
       <form class="admin-form" id="course-scan-form">
         <label>Course<input name="course_name" list="course-library-names" placeholder="Choose or enter a course" required></label>
         <datalist id="course-library-names">${names.map(name => `<option value="${escHtml(name)}"></option>`).join('')}</datalist>
