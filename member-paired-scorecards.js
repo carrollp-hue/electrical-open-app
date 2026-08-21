@@ -230,7 +230,15 @@
       const current = player();
       const requestedId = location.hash.split('/')[1];
       const eligible = state.fixtures.filter(item => item.member_scoring_enabled && current && participant(item.id, current.id));
-      if (requestedId && !eligible.some(item => item.id === requestedId)) return originalRender();
+      // Result-table links use a fixture-entry ID, whereas member scoring uses a
+      // fixture ID.  Leave official scorecard links to the read-only renderer.
+      if (requestedId && !eligible.some(item => item.id === requestedId)) {
+        app.innerHTML = fixtureScorecardDetail(requestedId);
+        document.querySelectorAll('.bottom-nav a').forEach(anchor => {
+          anchor.classList.toggle('active', anchor.dataset.route === 'scorecard');
+        });
+        return;
+      }
       const fixture = (requestedId ? eligible.find(item => item.id === requestedId) : null) || eligible.sort((a, b) => `${a.fixture_date}${a.tee_time || ''}`.localeCompare(`${b.fixture_date}${b.tee_time || ''}`))[0];
       if (!fixture) {
         app.innerHTML = '<p class="eyebrow">Scorecard</p><h1>No scorecard ready</h1><p class="intro">A scorecard becomes available once an administrator has enabled it for a fixture you are playing in.</p>';
