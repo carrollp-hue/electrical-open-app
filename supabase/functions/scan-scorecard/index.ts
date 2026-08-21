@@ -45,7 +45,7 @@ Deno.serve(async request => {
     if (!apiKey) return Response.json({ error: 'The Gemini scorecard scanner has not been configured yet.' }, { status: 503, headers });
     const image = image_data_url.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
     if (!image) return Response.json({ error: 'Please choose a standard image file.' }, { status: 400, headers });
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_VISION_MODEL') || 'gemini-2.5-flash'}:generateContent`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_VISION_MODEL') || 'gemini-3.6-flash'}:generateContent`, {
       method: 'POST',
       headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
