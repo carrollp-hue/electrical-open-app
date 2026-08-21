@@ -13,6 +13,10 @@
     const values = [society, person?.club_handicap].filter(value => value != null).map(Number);
     return values.length ? Math.min(...values) : null;
   };
+  const playingFor = (fixtureId, playerId, index, fixture, course) => {
+    const override = participant(fixtureId, playerId)?.playing_handicap_override;
+    return override != null ? Number(override) : playingHandicapFor(index, fixture, course);
+  };
   const strokesAt = (playing, si) => Math.floor(playing / 18) + (si <= playing % 18 ? 1 : 0);
   const scores = key => [...document.querySelectorAll(`[data-paired-score="${key}"]`)].map(input => input.value === '' ? null : Number(input.value));
   const complete = values => values.length === 18 && values.every(value => Number.isInteger(value) && value >= 1 && value <= 20);
@@ -23,7 +27,7 @@
     try {
       const fixture = fixtureFor(active?.fixture_id), course = setup(fixture?.course_setup_id), current = player(), markedId = document.querySelector('#paired-player-a')?.value;
       if (!fixture || !course || !current) throw new Error('fixture, course, or signed-in player is missing');
-      const ownIndex = indexFor(fixture.id, current.id), markedIndex = markedId && indexFor(fixture.id, markedId), ownPlaying = ownIndex == null ? null : playingHandicapFor(ownIndex, fixture, course), markedPlaying = markedIndex == null ? null : playingHandicapFor(markedIndex, fixture, course);
+      const ownIndex = indexFor(fixture.id, current.id), markedIndex = markedId && indexFor(fixture.id, markedId), ownPlaying = ownIndex == null ? null : playingFor(fixture.id, current.id, ownIndex, fixture, course), markedPlaying = markedIndex == null ? null : playingFor(fixture.id, markedId, markedIndex, fixture, course);
       if (summary) summary.textContent = `You: ${ownIndex?.toFixed(1) ?? '—'} index · ${ownPlaying ?? '—'} playing | Player A: ${markedIndex?.toFixed(1) ?? '—'} index · ${markedPlaying ?? '—'} playing`;
       const ownScores = scores('own'), markedScores = scores('marked');
       let ownTotal = 0, markedTotal = 0;
@@ -81,7 +85,7 @@
     if (submit && (!active.marked_player_id || !complete(own) || !complete(marked))) return message('Choose Player A and enter all 18 scores for both cards before submitting.', true);
     if (submit && !window.confirm('Confirm both scorecards with your playing partner before submission. Submitted cards are locked.')) return;
     const ownIndex = indexFor(fixture.id, current.id), markedIndex = active.marked_player_id && indexFor(fixture.id, active.marked_player_id);
-    const payload = { fixture_id: fixture.id, scorer_player_id: current.id, marked_player_id: active.marked_player_id, own_scores: own, marked_scores: marked, own_handicap_index: ownIndex, own_course_handicap: ownIndex == null ? null : courseHandicapFor(ownIndex, course), own_playing_handicap: ownIndex == null ? null : playingHandicapFor(ownIndex, fixture, course), marked_handicap_index: markedIndex, marked_course_handicap: markedIndex == null ? null : courseHandicapFor(markedIndex, course), marked_playing_handicap: markedIndex == null ? null : playingHandicapFor(markedIndex, fixture, course), own_status: submit ? 'submitted' : active.own_status, marked_status: submit ? 'submitted' : active.marked_status };
+    const payload = { fixture_id: fixture.id, scorer_player_id: current.id, marked_player_id: active.marked_player_id, own_scores: own, marked_scores: marked, own_handicap_index: ownIndex, own_course_handicap: ownIndex == null ? null : courseHandicapFor(ownIndex, course), own_playing_handicap: ownIndex == null ? null : playingFor(fixture.id, current.id, ownIndex, fixture, course), marked_handicap_index: markedIndex, marked_course_handicap: markedIndex == null ? null : courseHandicapFor(markedIndex, course), marked_playing_handicap: markedIndex == null ? null : playingFor(fixture.id, active.marked_player_id, markedIndex, fixture, course), own_status: submit ? 'submitted' : active.own_status, marked_status: submit ? 'submitted' : active.marked_status };
     const { data, error } = await client.from('member_scorecards').upsert(payload, { onConflict: 'fixture_id,scorer_player_id' }).select().single();
     if (error) return message(error.message, true);
     active = data;

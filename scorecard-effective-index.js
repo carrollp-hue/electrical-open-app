@@ -11,7 +11,8 @@
     const fixture = state.fixtures.find(item => item.id === fixtureId), course = setup(fixture?.course_setup_id), target = document.querySelector('#scorecard-fields');
     const index = effectiveIndex(fixtureId, playerId);
     if (!fixture || !course || index == null || !target?.dataset.courseSetupId) return;
-    const courseHcap = courseHandicap(index, course), playingHcap = playingHandicap(index, fixture, course);
+    const participant = (state.fixtureParticipants || []).find(item => item.fixture_id === fixtureId && item.player_id === playerId);
+    const courseHcap = courseHandicap(index, course), playingHcap = participant?.playing_handicap_override ?? playingHandicap(index, fixture, course);
     target.dataset.courseHandicap = courseHcap;
     target.dataset.playingHandicap = playingHcap;
     target.querySelector('.scorecard-summary')?.replaceChildren(Object.assign(document.createElement('span'), { textContent: `Index ${index.toFixed(1)} · Course ${courseHcap}` }), Object.assign(document.createElement('strong'), { textContent: `Playing handicap ${playingHcap}` }));

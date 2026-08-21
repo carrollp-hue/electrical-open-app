@@ -31,8 +31,8 @@
     const card = document.createElement('div');
     card.className = 'admin-card';
     card.id = 'course-library-card';
-    card.innerHTML = `<h2>Scorecard Scan/Upload</h2>
-      <p>Select the course, photograph or upload its blank scorecard, then review the detected tee, ratings and holes before saving a dated version.</p>
+    card.innerHTML = `<h2>Scorecard setup: scan or manual</h2>
+      <p>Select the course, photograph or upload its blank scorecard, then review the detected tee, ratings and holes before saving a dated version. If scanning is unavailable, use the manual option below to create exactly the same saved setup.</p>
       <form class="admin-form" id="course-scan-form">
         <label>Course<input name="course_name" list="course-library-names" placeholder="Choose or enter a course" required></label>
         <datalist id="course-library-names">${names.map(name => `<option value="${escHtml(name)}"></option>`).join('')}</datalist>
@@ -40,7 +40,7 @@
         <label>New course details apply from<input name="effective_from" type="date" value="${today()}" required></label>
         <button class="primary" type="submit">Scan and review scorecard</button>
       </form>
-      <button class="secondary" type="button" id="manual-course-review">Enter course data manually</button>
+      <button class="secondary" type="button" id="manual-course-review">Create scorecard manually</button>
       <div id="course-scan-message" class="admin-message"></div>
       <div id="course-review"></div>
       <section class="course-library-existing"><h3>Saved course tees</h3><div id="course-library-list">Loading saved setups…</div></section>`;
