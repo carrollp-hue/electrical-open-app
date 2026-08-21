@@ -111,7 +111,10 @@
     heading.append(' ', button);
     const toggle = () => {
       const collapsed = card.dataset.collapsed === 'true';
-      [...card.children].filter(child => child !== heading).forEach(child => { child.hidden = !collapsed; });
+      [...card.children].filter(child => child !== heading).forEach(child => {
+        child.hidden = !collapsed;
+        child.style.display = collapsed ? '' : 'none';
+      });
       card.dataset.collapsed = String(!collapsed);
       button.textContent = collapsed ? 'Minimise' : 'Expand';
     };
