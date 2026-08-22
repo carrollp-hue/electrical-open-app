@@ -1,15 +1,11 @@
 -- Run once in Supabase Dashboard -> SQL Editor before testing the course library.
 -- A new dated version can then be stored when a club changes a rating, slope or scorecard.
 
+-- The default supplies a date for existing rows as part of adding the column.
+-- This deliberately avoids updating historic course setups, which are protected
+-- once used by a scored fixture.
 alter table public.course_setups
-  add column if not exists effective_from date;
-
-update public.course_setups
-set effective_from = current_date
-where effective_from is null;
-
-alter table public.course_setups
-  alter column effective_from set not null;
+  add column if not exists effective_from date not null default current_date;
 
 alter table public.course_setups
   add column if not exists retired_on date,

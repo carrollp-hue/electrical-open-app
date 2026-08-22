@@ -1,5 +1,6 @@
 (() => {
   const today = () => new Date().toISOString().slice(0, 10);
+  let savedVersions = [];
   const escHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
   const allCourses = () => [...new Set((state.courseSetups || []).map(item => item.courses?.name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const scorecardRows = holes => Array.from({ length: 18 }, (_, index) => {
@@ -43,6 +44,7 @@
       <button class="secondary" type="button" id="manual-course-review">Create scorecard manually</button>
       <div id="course-scan-message" class="admin-message"></div>
       <div id="course-review"></div>
+      <section class="course-library-reuse"><h3>Reuse saved scorecard</h3><p>Choose a draft fixture and a saved course tee. Review all 18 holes before attaching that exact dated version to the fixture.</p><div id="course-library-reuse">Loading saved scorecards…</div></section>
       <section class="course-library-existing"><h3>Saved course tees</h3><div id="course-library-list">Loading saved setups…</div></section>`;
     panel.prepend(card);
     document.querySelector('#course-scan-form')?.addEventListener('submit', scanCard);
@@ -121,7 +123,43 @@
     if (!target) return;
     const { data, error } = await client.from('course_setups').select('id, tee_name, course_rating, slope_rating, par, effective_from, retired_on, courses(name)').order('effective_from', { ascending: false });
     if (error) { target.textContent = 'Run the Course & tee versions SQL upgrade to show dated setup history.'; return; }
-    target.innerHTML = data?.length ? `<table class="table"><thead><tr><th>Course</th><th>Tee</th><th>From</th><th>Rating / slope</th></tr></thead><tbody>${data.map(item => `<tr><td>${escHtml(item.courses?.name)}</td><td>${escHtml(item.tee_name)}</td><td>${escHtml(item.effective_from)}</td><td>${item.course_rating} / ${item.slope_rating}</td></tr>`).join('')}</tbody></table>` : 'No saved course tees yet.';
+    savedVersions = data || [];
+    target.innerHTML = savedVersions.length ? `<table class="table"><thead><tr><th>Course</th><th>Tee</th><th>From</th><th>Rating / slope</th></tr></thead><tbody>${savedVersions.map(item => `<tr><td>${escHtml(item.courses?.name)}</td><td>${escHtml(item.tee_name)}</td><td>${escHtml(item.effective_from)}</td><td>${item.course_rating} / ${item.slope_rating}</td></tr>`).join('')}</tbody></table>` : 'No saved course tees yet.';
+    renderReuseControls();
+  }
+
+  const versionLabel = version => `${version.courses?.name || 'Course'} · ${version.tee_name} · from ${version.effective_from}`;
+
+  function renderReuseControls() {
+    const target = document.querySelector('#course-library-reuse');
+    if (!target) return;
+    const fixtures = (state.fixtures || []).filter(item => !['completed', 'archived'].includes(item.status));
+    if (!savedVersions.length) { target.textContent = 'Save or scan a course tee first.'; return; }
+    if (!fixtures.length) { target.textContent = 'Create a draft fixture first.'; return; }
+    target.innerHTML = `<form class="admin-form" id="reuse-course-form"><label>Fixture<select name="fixture_id" required><option value="">Select draft fixture</option>${fixtures.map(fixture => `<option value="${fixture.id}">${escHtml(fixture.fixture_date)} · ${escHtml(fixture.name)}</option>`).join('')}</select></label><label>Saved scorecard<select name="course_setup_id" id="reuse-course-setup" required><option value="">Select course and tee</option>${savedVersions.map(version => `<option value="${version.id}">${escHtml(versionLabel(version))}</option>`).join('')}</select></label><div id="reuse-course-preview"></div><button class="primary" type="submit">Use this scorecard for fixture</button></form>`;
+    document.querySelector('#reuse-course-setup')?.addEventListener('change', event => showReusePreview(event.target.value));
+    document.querySelector('#reuse-course-form')?.addEventListener('submit', applySavedScorecard);
+  }
+
+  async function showReusePreview(setupId) {
+    const target = document.querySelector('#reuse-course-preview');
+    const version = savedVersions.find(item => item.id === setupId);
+    if (!target || !version) { if (target) target.innerHTML = ''; return; }
+    target.innerHTML = '<p class="intro">Loading 18-hole scorecard…</p>';
+    const { data: holes, error } = await client.from('course_holes').select('hole_number, par, stroke_index').eq('course_setup_id', setupId).order('hole_number');
+    if (error || holes?.length !== 18) { target.innerHTML = `<p class="form-message error">${escHtml(error?.message || 'This saved scorecard does not have all 18 holes.')}</p>`; return; }
+    target.innerHTML = `<div class="course-library-preview"><p><strong>${escHtml(versionLabel(version))}</strong><br>Par ${version.par} · Course rating ${version.course_rating} · Slope ${version.slope_rating}</p><div class="table-responsive"><table class="table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th></tr></thead><tbody>${holes.map(hole => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td></tr>`).join('')}</tbody></table></div><p class="intro">Check this matches the current scorecard before using it.</p></div>`;
+  }
+
+  async function applySavedScorecard(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget), fixtureId = data.get('fixture_id'), setupId = data.get('course_setup_id');
+    if (!fixtureId || !setupId) return setMessage('Choose both a fixture and a saved scorecard.', true);
+    const { error } = await client.from('fixtures').update({ course_setup_id: setupId }).eq('id', fixtureId);
+    if (error) return setMessage(error.message, true);
+    await load();
+    location.hash = '#admin/course';
+    setMessage('Saved scorecard attached. The fixture start sheet now uses this course rating, slope and 18-hole card.');
   }
 
   new MutationObserver(inject).observe(document.querySelector('#app'), { childList: true, subtree: true });
