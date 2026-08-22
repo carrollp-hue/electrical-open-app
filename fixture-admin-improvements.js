@@ -88,7 +88,11 @@
     const card = document.createElement('div'); card.className = 'admin-card'; card.id = 'participant-handicap-overrides';
     card.innerHTML = `<h2>Fixture index overrides</h2><p>Current index is shown for reference. An override applies only to this fixture; leave it blank to use the current index. Playing handicap is then calculated automatically.</p><div class="table-responsive"><table class="table"><thead><tr><th>Player</th><th>Current index</th><th>Override index</th></tr></thead><tbody>${selected.map(item => { const person = state.memberDirectory.find(member => member.id === item.player_id) || item.players, current = currentIndex(person); return `<tr><td>${escHtml(person?.first_name)} ${escHtml(person?.surname)}${item.is_guest ? ' (Guest)' : ''}</td><td>${current == null ? '—' : Number(current).toFixed(1)}</td><td><form class="fixture-override-form"><input type="hidden" name="fixture_id" value="${fixtureId}"><input type="hidden" name="player_id" value="${item.player_id}"><input name="handicap_index_override" type="number" min="-10" max="54" step="0.1" placeholder="Override index" value="${item.handicap_index_override ?? ''}"><button class="secondary" type="submit">Save</button></form></td></tr>`; }).join('') || '<tr><td colspan="3">No participants selected.</td></tr>'}</tbody></table></div>`;
     const selectedCard = [...document.querySelectorAll('.admin-card')].find(item => item.querySelector('h2')?.textContent === 'Selected participants');
-    selectedCard?.insertAdjacentElement('afterend', card);
+    const guestCard = document.querySelector('#add-guest-form')?.closest('.admin-card');
+    // Keep the optional override panel at the end of the participant workflow.
+    // It is useful after people have been selected, but should not interrupt
+    // adding members, returning guests, or a new guest.
+    (guestCard || selectedCard)?.insertAdjacentElement('afterend', card);
     card.querySelectorAll('.fixture-override-form').forEach(form => form.addEventListener('submit', saveOverride));
     const guests = state.memberDirectory.filter(item => item.is_guest && !selected.some(entry => entry.player_id === item.id)).sort((a,b) => a.surname.localeCompare(b.surname) || a.first_name.localeCompare(b.first_name));
     const nonMembersCard = [...document.querySelectorAll('.admin-card')].find(item => item.querySelector('h2')?.textContent === 'Non-members available to add');
