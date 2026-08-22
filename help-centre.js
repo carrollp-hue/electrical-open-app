@@ -10,10 +10,13 @@
     </article>`;
 
   help = function () {
-    const administratorGuide = state.isStaff
-      ? `<section class="section"><h2>Administrator resources</h2>${guideCard('Administrator access checklist', 'A quick reminder of how to give a signed-in member administrator access.', './help/Administrator-Access-Checklist.pdf', 'Electrical-Open-Administrator-Access-Checklist.pdf')}</section>`
+    const membershipGuide = (state.isStaff || state.isMembershipAdmin)
+      ? `<section class="section"><h2>Membership administrator resources</h2>${guideCard('Membership administrator guide', 'Plain-English steps for yearly membership, fixtures and fixture participants.', './help/Membership-Administrator-Guide.pdf', 'Electrical-Open-Membership-Administrator-Guide.pdf')}</section>`
       : '';
-    return `<p class="eyebrow">Electrical Open</p><h1>Help & guides</h1><p class="intro">Open a guide in your browser or download a copy to keep on your phone.</p><section class="section"><h2>Member guide</h2>${guideCard('User and administrator guide', 'Signing in, adding the app to your phone, notifications, fixtures, scorecards and the main administrator tools.', './help/Electrical-Open-User-Guide.pdf', 'Electrical-Open-User-and-Admin-Guide.pdf')}</section>${administratorGuide}<section class="section"><div class="info-box">The guides are kept with the app so the latest versions are available wherever you use Electrical Open.</div></section>`;
+    const administratorGuide = state.isAdmin
+      ? `<section class="section"><h2>App administrator resources</h2>${guideCard('App administrator quick guide', 'A concise handover guide covering access, hosting, backups and safe administration.', './help/App-Administrator-Quick-Guide.pdf', 'Electrical-Open-App-Administrator-Quick-Guide.pdf')}${guideCard('Administrator access checklist', 'A quick reminder of how to give a signed-in member administrator access.', './help/Administrator-Access-Checklist.pdf', 'Electrical-Open-Administrator-Access-Checklist.pdf')}</section>`
+      : '';
+    return `<p class="eyebrow">Electrical Open</p><h1>Help & guides</h1><p class="intro">Open a guide in your browser or download a copy to keep on your phone.</p><section class="section"><h2>Member guide</h2>${guideCard('User and administrator guide', 'Signing in, adding the app to your phone, notifications, fixtures, scorecards and the main administrator tools.', './help/Electrical-Open-User-Guide.pdf', 'Electrical-Open-User-and-Admin-Guide.pdf')}</section>${membershipGuide}${administratorGuide}<section class="section"><div class="info-box">The guides are kept with the app so the latest versions are available wherever you use Electrical Open.</div></section>`;
   };
 
   render = function () {
