@@ -3,8 +3,17 @@
 function fixtures(fixtureId) {
   const fixture = state.fixtures.find(item => item.id === fixtureId);
   if (!fixture) {
-    const years = [...new Set(state.fixtures.map(item => item.fixture_date.slice(0, 4)))].sort().reverse();
-    return `<p class="eyebrow">Society calendar</p><h1>Fixtures & results</h1>${years.map(year => `<section class="section"><h2>${year}</h2>${state.fixtures.filter(item => item.fixture_date.startsWith(year)).map(fixtureRow).join('')}</section>`).join('')}`;
+    const isHistorical = item => Boolean(item.is_historical);
+    const isCompleted = item => ['completed', 'published', 'archived'].includes(item.status);
+    const byDate = (a, b) => `${a.fixture_date}${a.tee_time || ''}`.localeCompare(`${b.fixture_date}${b.tee_time || ''}`);
+    const groupedByYear = list => {
+      const years = [...new Set(list.map(item => item.fixture_date.slice(0, 4)))].sort((a, b) => Number(b) - Number(a));
+      return years.map(year => `<div class="fixture-year-group"><h3 class="fixture-year-heading">${year}</h3>${list.filter(item => item.fixture_date.startsWith(year)).map(fixtureRow).join('')}</div>`).join('');
+    };
+    const future = state.fixtures.filter(item => !isHistorical(item) && !isCompleted(item)).sort(byDate);
+    const completed = state.fixtures.filter(item => !isHistorical(item) && isCompleted(item)).sort((a, b) => byDate(b, a));
+    const historicalCount = state.fixtures.filter(isHistorical).length;
+    return `<p class="eyebrow">Society calendar</p><h1>Fixtures & results</h1><section class="section fixture-list-section"><div class="fixture-list-heading"><h2>Fixtures</h2><span>Upcoming</span></div>${future.length ? groupedByYear(future) : empty('No upcoming fixtures.')}</section><div class="fixture-results-divider" aria-hidden="true"></div><section class="section fixture-list-section results-list-section"><div class="fixture-list-heading"><h2>Results</h2><span>Completed</span></div>${completed.length ? groupedByYear(completed) : empty('No completed fixtures yet.')}</section>${historicalCount ? `<section class="section historical-archive-link"><h2>Historical results</h2><p>Browse ${historicalCount} verified archived fixture${historicalCount === 1 ? '' : 's'} with gross, nett and Stableford points.</p>${link('fixtures/historical', 'Open historical archive')}</section>` : ''}`;
   }
 
   const course = setup(fixture.course_setup_id);
