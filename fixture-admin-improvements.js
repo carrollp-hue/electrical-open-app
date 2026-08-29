@@ -73,9 +73,11 @@
       if (heading === 'Attach course details' || heading === '18-hole scorecard setup') card.hidden = true;
     });
     const setups = state.courseSetups.map(item => `<option value="${item.id}">${escHtml(item.courses?.name)} · ${escHtml(item.tee_name)} · Rating ${item.course_rating} / Slope ${item.slope_rating}</option>`).join('');
-    const card = document.createElement('div'); card.className = 'admin-card'; card.id = 'saved-course-attach';
-    card.innerHTML = `<h2>Attach saved course setup</h2><p>Choose the reviewed course and tee version for a fixture. Use Scorecard Scan/Upload above for both scanned and manual course setup.</p><form class="admin-form" id="attach-saved-course-form"><label>Fixture<select name="fixture_id" required><option value="">Select fixture</option>${activeFixtures().map(item => `<option value="${item.id}">${escHtml(item.fixture_date)} · ${escHtml(item.name)}</option>`).join('')}</select></label><label>Course and tee<select name="course_setup_id" required><option value="">Select reviewed course tee</option>${setups}</select></label><label>Handicap allowance<select name="handicap_allowance"><option value="1">100%</option><option value="0.95">95%</option><option value="0.85">85%</option></select></label><button class="primary" type="submit">Attach to fixture</button></form></div>`;
-    document.querySelector('#course-library-card').insertAdjacentElement('afterend', card);
+    const card = document.createElement('div'); card.className = 'course-library-attach-content'; card.id = 'saved-course-attach';
+    card.innerHTML = `<form class="admin-form" id="attach-saved-course-form"><label>Fixture<select name="fixture_id" required><option value="">Select fixture</option>${activeFixtures().map(item => `<option value="${item.id}">${escHtml(item.fixture_date)} · ${escHtml(item.name)}</option>`).join('')}</select></label><label>Course and tee<select name="course_setup_id" required><option value="">Select reviewed course tee</option>${setups}</select></label><label>Handicap allowance<select name="handicap_allowance"><option value="1">100%</option><option value="0.95">95%</option><option value="0.85">85%</option></select></label><button class="primary" type="submit">Attach scorecard to fixture</button></form>`;
+    const attachTarget = document.querySelector('#course-library-attach');
+    if (attachTarget) attachTarget.replaceChildren(card);
+    else document.querySelector('#course-library-card').insertAdjacentElement('afterend', card);
     card.querySelector('form').addEventListener('submit', attachCourse);
   };
 

@@ -36,10 +36,9 @@
     const card = document.createElement('div');
     card.className = 'admin-card';
     card.id = 'course-library-card';
-    card.innerHTML = `<h2>Scorecard setup: scan or manual</h2>
-      <p>Select the course, photograph or upload its blank scorecard, then review the detected tee, ratings and holes before saving a dated version. If scanning is unavailable, use the manual option below to create exactly the same saved setup.</p>
-      <section class="course-library-fixture-review"><h3>View or change a fixture scorecard</h3><p>Select a fixture to see its currently assigned course and tee. Draft fixtures can be changed safely by creating a revised copy; completed fixtures are view-only so their recorded results remain protected.</p><div id="fixture-scorecard-review">Loading fixtures…</div></section>
-      <form class="admin-form" id="course-scan-form">
+    card.innerHTML = `<h2>Course scorecards</h2>
+      <section class="course-library-section course-library-fixture-review"><h3>1. View or Change Scorecard</h3><p>Select a fixture to see its currently assigned course and tee. Draft fixtures can be changed safely by creating a revised copy; completed fixtures are view-only so their recorded results remain protected.</p><div id="fixture-scorecard-review">Loading fixtures…</div></section>
+      <section class="course-library-section"><h3>2. Create/Scan New Scorecard</h3><p>Photograph or upload a blank scorecard, then review the detected tee, ratings and holes before saving a dated version. If scanning is unavailable, create the same setup manually.</p><form class="admin-form" id="course-scan-form">
         <label>Course<input name="course_name" list="course-library-names" placeholder="Choose or enter a course" required></label>
         <datalist id="course-library-names">${names.map(name => `<option value="${escHtml(name)}"></option>`).join('')}</datalist>
         <label>Blank scorecard image<input name="scorecard_image" type="file" accept="image/*" capture="environment" required></label>
@@ -48,9 +47,10 @@
       </form>
       <button class="secondary" type="button" id="manual-course-review">Create scorecard manually</button>
       <div id="course-scan-message" class="admin-message"></div>
-      <div id="course-review"></div>
-      <section class="course-library-reuse"><h3>Reuse saved scorecard</h3><p>Choose a draft fixture and a saved course tee. Review all 18 holes before attaching that exact dated version to the fixture.</p><div id="course-library-reuse">Loading saved scorecards…</div></section>
-      <section class="course-library-existing"><h3>Saved course tees</h3><div id="course-library-list">Loading saved setups…</div></section>`;
+      <div id="course-review"></div></section>
+      <section class="course-library-section course-library-reuse"><h3>3. Reuse Existing Scorecard</h3><p>Choose a draft fixture and a saved course tee. Review all 18 holes before attaching that exact dated version to the fixture.</p><div id="course-library-reuse">Loading saved scorecards…</div></section>
+      <section class="course-library-section course-library-attach"><h3>4. Attach Scorecard to Fixture</h3><p>Attach a previously reviewed course and tee to a fixture without using the reuse preview above.</p><div id="course-library-attach">Loading fixture options…</div></section>
+      <section class="course-library-existing"><div class="course-library-heading"><h3>Saved course tees</h3><button class="secondary" type="button" id="saved-course-tees-toggle" aria-expanded="false">Expand</button></div><div id="course-library-list" hidden>Loading saved setups…</div></section>`;
     panel.prepend(card);
     document.querySelector('#course-scan-form')?.addEventListener('submit', scanCard);
     document.querySelector('#manual-course-review')?.addEventListener('click', () => {
@@ -59,6 +59,7 @@
     });
     loadVersions();
     renderFixtureScorecardReview();
+    document.querySelector('#saved-course-tees-toggle')?.addEventListener('click', toggleSavedCourseTees);
   };
 
   const setMessage = (text, error = false) => {
@@ -138,6 +139,16 @@
     target.innerHTML = savedVersions.length ? `<table class="table"><thead><tr><th>Course</th><th>Tee</th><th>From</th><th>Rating / slope</th></tr></thead><tbody>${savedVersions.map(item => `<tr><td>${escHtml(item.courses?.name)}</td><td>${escHtml(item.tee_name)}</td><td>${escHtml(item.effective_from)}</td><td>${item.course_rating} / ${item.slope_rating}</td></tr>`).join('')}</tbody></table>` : 'No saved course tees yet.';
     renderReuseControls();
     renderFixtureScorecardReview();
+  }
+
+  function toggleSavedCourseTees() {
+    const button = document.querySelector('#saved-course-tees-toggle');
+    const list = document.querySelector('#course-library-list');
+    if (!button || !list) return;
+    const expanding = list.hidden;
+    list.hidden = !expanding;
+    button.textContent = expanding ? 'Minimise' : 'Expand';
+    button.setAttribute('aria-expanded', String(expanding));
   }
 
   const versionLabel = version => `${version.courses?.name || 'Course'} · ${version.tee_name} · from ${version.effective_from}`;
