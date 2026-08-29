@@ -223,8 +223,7 @@ function fixtures(fixtureId) {
   const hasScores = people.some(item => item.entry);
   people.sort((a, b) => {
     const aPosition = a.entry?.competition_position, bPosition = b.entry?.competition_position;
-    if (aPosition != null || bPosition != null) return (aPosition ?? Number.MAX_SAFE_INTEGER) - (bPosition ?? Number.MAX_SAFE_INTEGER) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
-    if (hasScores) return Number(b.entry?.stableford_points ?? -1) - Number(a.entry?.stableford_points ?? -1) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
+    if (hasScores) return Number(b.entry?.order_of_merit_points ?? 0) - Number(a.entry?.order_of_merit_points ?? 0) || Number(b.entry?.stableford_points ?? -1) - Number(a.entry?.stableford_points ?? -1) || (aPosition ?? Number.MAX_SAFE_INTEGER) - (bPosition ?? Number.MAX_SAFE_INTEGER) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
     return `${a.players?.surname}`.localeCompare(`${b.players?.surname}`) || `${a.players?.first_name}`.localeCompare(`${b.players?.first_name}`);
   });
   const rows = people.map(item => {

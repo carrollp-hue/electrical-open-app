@@ -34,8 +34,7 @@ function fixtures(fixtureId) {
 
   people.sort((a, b) => {
     const aPosition = a.entry?.competition_position, bPosition = b.entry?.competition_position;
-    if (aPosition != null || bPosition != null) return (aPosition ?? Number.MAX_SAFE_INTEGER) - (bPosition ?? Number.MAX_SAFE_INTEGER) || nameFor(a).localeCompare(nameFor(b));
-    if (hasScores) return Number(b.entry?.stableford_points ?? -1) - Number(a.entry?.stableford_points ?? -1) || nameFor(a).localeCompare(nameFor(b));
+    if (hasScores) return Number(b.entry?.order_of_merit_points ?? 0) - Number(a.entry?.order_of_merit_points ?? 0) || Number(b.entry?.stableford_points ?? -1) - Number(a.entry?.stableford_points ?? -1) || (aPosition ?? Number.MAX_SAFE_INTEGER) - (bPosition ?? Number.MAX_SAFE_INTEGER) || nameFor(a).localeCompare(nameFor(b));
     return nameFor(a).localeCompare(nameFor(b));
   });
 
