@@ -13,6 +13,9 @@
     const teeControl = teeOptions.length
       ? `<label>Choose tee first<select name="tee_name" id="scanned-tee-select" required>${teeOptions.map(tee => `<option value="${escHtml(tee.name)}" ${tee.name === data.tee_name ? 'selected' : ''}>${escHtml(tee.name)}</option>`).join('')}</select></label>`
       : '<label>Tee colour / name<input name="tee_name" placeholder="Yellow" required></label>';
+    const attachNotice = data.attach_fixture_id
+      ? `<input type="hidden" name="attach_fixture_id" value="${escHtml(data.attach_fixture_id)}"><p class="intro"><strong>This creates a new dated course-and-tee version, then assigns it to the selected draft fixture.</strong> The original scorecard is kept unchanged.</p>`
+      : '';
     return `<form class="admin-form course-review-form" id="course-review-form">
       <h3>Review extracted course data</h3>
       <p>Choose the tee first, then check every value against the card before saving. You can correct any value. Nothing changes on past fixtures.</p>
@@ -20,6 +23,7 @@
       <div class="field-row"><label>Effective from<input name="effective_from" type="date" value="${escHtml(data.effective_from || today())}" required></label><label>Course rating<input name="course_rating" type="number" min="50" max="85" step="0.1" value="${data.course_rating ?? ''}" required></label></div>
       <div class="field-row"><label>Slope rating<input name="slope_rating" type="number" min="55" max="155" value="${data.slope_rating ?? ''}" required></label><label>Total par<input name="par" type="number" min="54" max="80" value="${data.par ?? ''}" required></label></div>
       <div class="table-responsive course-review-table"><table class="table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th></tr></thead><tbody>${scorecardRows(data.holes)}</tbody></table></div>
+      ${attachNotice}
       <button class="primary" type="submit">Save reviewed course tee</button>
     </form>`;
   };
@@ -34,6 +38,7 @@
     card.id = 'course-library-card';
     card.innerHTML = `<h2>Scorecard setup: scan or manual</h2>
       <p>Select the course, photograph or upload its blank scorecard, then review the detected tee, ratings and holes before saving a dated version. If scanning is unavailable, use the manual option below to create exactly the same saved setup.</p>
+      <section class="course-library-fixture-review"><h3>View or change a fixture scorecard</h3><p>Select a fixture to see its currently assigned course and tee. Draft fixtures can be changed safely by creating a revised copy; completed fixtures are view-only so their recorded results remain protected.</p><div id="fixture-scorecard-review">Loading fixtures…</div></section>
       <form class="admin-form" id="course-scan-form">
         <label>Course<input name="course_name" list="course-library-names" placeholder="Choose or enter a course" required></label>
         <datalist id="course-library-names">${names.map(name => `<option value="${escHtml(name)}"></option>`).join('')}</datalist>
@@ -53,6 +58,7 @@
       bindReview();
     });
     loadVersions();
+    renderFixtureScorecardReview();
   };
 
   const setMessage = (text, error = false) => {
@@ -113,9 +119,14 @@
     if (setupError) return setMessage(setupError.message.includes('effective_from') ? 'Run the Course & tee versions SQL upgrade before testing this feature.' : setupError.message, true);
     const { error: holesError } = await client.from('course_holes').insert(card.map(item => ({ ...item, course_setup_id: saved.id })));
     if (holesError) return setMessage(holesError.message, true);
+    const fixtureId = data.get('attach_fixture_id');
+    if (fixtureId) {
+      const { error: fixtureError } = await client.from('fixtures').update({ course_setup_id: saved.id }).eq('id', fixtureId).in('status', ['draft', 'scheduled']);
+      if (fixtureError) return setMessage(fixtureError.message, true);
+    }
     await load();
     location.hash = '#admin/course';
-    setMessage('New dated tee version saved. Existing fixtures still use their original setup.');
+    setMessage(fixtureId ? 'Revised scorecard saved and assigned to the fixture. The original remains unchanged.' : 'New dated tee version saved. Existing fixtures still use their original setup.');
   }
 
   async function loadVersions() {
@@ -126,6 +137,7 @@
     savedVersions = data || [];
     target.innerHTML = savedVersions.length ? `<table class="table"><thead><tr><th>Course</th><th>Tee</th><th>From</th><th>Rating / slope</th></tr></thead><tbody>${savedVersions.map(item => `<tr><td>${escHtml(item.courses?.name)}</td><td>${escHtml(item.tee_name)}</td><td>${escHtml(item.effective_from)}</td><td>${item.course_rating} / ${item.slope_rating}</td></tr>`).join('')}</tbody></table>` : 'No saved course tees yet.';
     renderReuseControls();
+    renderFixtureScorecardReview();
   }
 
   const versionLabel = version => `${version.courses?.name || 'Course'} · ${version.tee_name} · from ${version.effective_from}`;
@@ -160,6 +172,54 @@
     await load();
     location.hash = '#admin/course';
     setMessage('Saved scorecard attached. The fixture start sheet now uses this course rating, slope and 18-hole card.');
+  }
+
+  function fixtureLabel(fixture) {
+    return `${fixture.fixture_date} · ${fixture.name}${fixture.competition_name ? ` — ${fixture.competition_name}` : ''}`;
+  }
+
+  function renderFixtureScorecardReview() {
+    const target = document.querySelector('#fixture-scorecard-review');
+    if (!target) return;
+    const fixtures = (state.fixtures || []).slice().sort((a, b) => String(b.fixture_date).localeCompare(String(a.fixture_date)));
+    if (!fixtures.length) { target.textContent = 'Create a fixture first.'; return; }
+    target.innerHTML = `<form class="admin-form" id="fixture-scorecard-review-form"><label>Fixture<select name="fixture_id" id="fixture-scorecard-review-select"><option value="">Select fixture</option>${fixtures.map(fixture => `<option value="${fixture.id}">${escHtml(fixtureLabel(fixture))}${fixture.status === 'completed' ? ' (completed)' : ''}</option>`).join('')}</select></label><div id="fixture-scorecard-review-detail">Choose a fixture to see its scorecard.</div></form>`;
+    document.querySelector('#fixture-scorecard-review-select')?.addEventListener('change', event => showFixtureScorecard(event.target.value));
+  }
+
+  async function showFixtureScorecard(fixtureId) {
+    const target = document.querySelector('#fixture-scorecard-review-detail');
+    const fixture = (state.fixtures || []).find(item => item.id === fixtureId);
+    if (!target || !fixture) { if (target) target.textContent = 'Choose a fixture to see its scorecard.'; return; }
+    const version = savedVersions.find(item => item.id === fixture.course_setup_id) || (state.courseSetups || []).find(item => item.id === fixture.course_setup_id);
+    if (!version) {
+      target.innerHTML = `<p class="form-message error">No scorecard is assigned to this fixture yet. Use Scorecard Scan/Upload below, then attach the saved scorecard.</p>`;
+      return;
+    }
+    target.innerHTML = '<p class="intro">Loading the assigned 18-hole scorecard…</p>';
+    const { data: holes, error } = await client.from('course_holes').select('hole_number, par, stroke_index').eq('course_setup_id', version.id).order('hole_number');
+    if (error || holes?.length !== 18) { target.innerHTML = `<p class="form-message error">${escHtml(error?.message || 'The assigned setup does not contain all 18 holes.')}</p>`; return; }
+    const courseName = version.courses?.name || fixture.name;
+    const summary = `<p><strong>Assigned scorecard:</strong> ${escHtml(courseName)} · ${escHtml(version.tee_name)}<br>Par ${version.par} · Course rating ${version.course_rating} · Slope ${version.slope_rating}</p><div class="table-responsive"><table class="table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th></tr></thead><tbody>${holes.map(hole => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td></tr>`).join('')}</tbody></table></div>`;
+    if (['completed', 'published', 'archived'].includes(fixture.status)) {
+      target.innerHTML = `${summary}<p class="intro"><strong>Completed fixture:</strong> this scorecard is view-only to protect its results and handicap calculations.</p>`;
+      return;
+    }
+    target.innerHTML = `${summary}<button class="secondary" type="button" id="create-fixture-scorecard-copy">Create editable revised copy</button><p class="intro">This does not overwrite the original. Review the copy, make any corrections, then save it to assign the revised scorecard to this fixture.</p>`;
+    document.querySelector('#create-fixture-scorecard-copy')?.addEventListener('click', () => {
+      document.querySelector('#course-review').innerHTML = reviewForm({
+        course_name: courseName,
+        tee_name: version.tee_name,
+        effective_from: fixture.fixture_date || today(),
+        course_rating: version.course_rating,
+        slope_rating: version.slope_rating,
+        par: version.par,
+        holes,
+        attach_fixture_id: fixture.id,
+      });
+      bindReview();
+      document.querySelector('#course-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   new MutationObserver(inject).observe(document.querySelector('#app'), { childList: true, subtree: true });
