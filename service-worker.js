@@ -1,4 +1,4 @@
-const CACHE = "electrical-open-v135";
+const CACHE = "electrical-open-v136";
 const ASSETS = ["./index.html", "./reset-password.html", "./styles.css", "./scorecard-layout.css", "./bottom-nav-tuning.css", "./notification-indicator.css", "./password-management.css", "./app.js", "./scorecard-effective-index.js", "./fixture-editor.js", "./scorecard-layout.js", "./scorecard-handicap-summary.js", "./profile-selection.js", "./fixture-commit.js", "./membership-admin.js", "./member-invitations.js", "./admin-access-guard.js", "./fixture-home-sections.js", "./course-library.js", "./fixture-admin-improvements.js", "./auth-token-retry.js", "./member-paired-scorecards.js", "./fixture-completion-workflow.js", "./historical-results.js", "./notifications.js", "./password-management.js", "./reset-password.js", "./help-centre.js", "./app-access-indicators.js", "./fixture-display-admin-tidy.js", "./help/Electrical-Open-User-Guide.pdf", "./help/Administrator-Access-Checklist.pdf", "./help/Membership-Administrator-Guide.pdf", "./help/App-Administrator-Quick-Guide.pdf", "./supabase-config.js", "./manifest.webmanifest", "./icon.svg"];
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener("activate", event => event.waitUntil(Promise.all([
@@ -8,6 +8,17 @@ self.addEventListener("activate", event => event.waitUntil(Promise.all([
 self.addEventListener("fetch", event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).catch(() => caches.match('./index.html')));
+    return;
+  }
+  // Scripts and styles are fetched from the network first. This keeps a
+  // deployed update from being held back by an older app shell, while the
+  // cached version is still available if the phone is offline.
+  if (['script', 'style'].includes(event.request.destination)) {
+    event.respondWith(fetch(event.request).then(response => {
+      const copy = response.clone();
+      caches.open(CACHE).then(cache => cache.put(event.request, copy));
+      return response;
+    }).catch(() => caches.match(event.request)));
     return;
   }
   event.respondWith(caches.open(CACHE).then(cache => cache.match(event.request)).then(hit => hit || fetch(event.request)));
