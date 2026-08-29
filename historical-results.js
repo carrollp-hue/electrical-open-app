@@ -41,7 +41,10 @@ function fixtures(fixtureId) {
 
   const rows = people.map(item => {
     const entry = item.entry, index = indexFor(item), name = nameFor(item);
-    const playerCell = entry?.id ? `<button class="text-link scorecard-result-link" type="button" data-open-official-scorecard="${entry.id}">${esc(name)}${item.is_guest ? ' (Guest)' : ''}</button>` : `${esc(name)}${item.is_guest ? ' (Guest)' : ''}`;
+    // Use a normal hash link here rather than a delegated button action. The
+    // results renderer is replaced by this file, so a real link remains
+    // dependable on both desktop and mobile when opening an official card.
+    const playerCell = entry?.id ? `<a class="text-link scorecard-result-link" href="#scorecard/${entry.id}">${esc(name)}${item.is_guest ? ' (Guest)' : ''}</a>` : `${esc(name)}${item.is_guest ? ' (Guest)' : ''}`;
     return `<tr><td>${entry?.competition_position ?? '—'}</td><td>${playerCell}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${course && index != null ? playingHandicap(index, fixture, course) : '—'}</td><td>${entry ? (entry.gross_score == null ? 'NR' : entry.gross_score) : '—'}</td><td>${entry?.nett_score ?? '—'}</td><td>${entry?.stableford_points ?? '—'}</td><td>${entry?.order_of_merit_points ?? '—'}</td></tr>`;
   }).join('');
 
