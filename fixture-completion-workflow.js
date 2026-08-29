@@ -48,7 +48,16 @@
       const totals = provisional && scoreTotals(provisional.scores, provisional.playing ?? playingFor(fixture, course, item.player_id), course);
       return { ...item, entry, provisional, totals };
     });
-    people.sort((a, b) => Number(b.entry?.stableford_points ?? b.totals?.points ?? -1) - Number(a.entry?.stableford_points ?? a.totals?.points ?? -1) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
+    // Official rows are ranked for display by their awarded Order of Merit
+    // points, then by Stableford points. Provisional rows have no OOM award,
+    // so remain beneath official results and are ordered by their points.
+    people.sort((a, b) => {
+      const aOOM = a.entry ? Number(a.entry.order_of_merit_points ?? 0) : -1;
+      const bOOM = b.entry ? Number(b.entry.order_of_merit_points ?? 0) : -1;
+      const aPoints = Number(a.entry?.stableford_points ?? a.totals?.points ?? -1);
+      const bPoints = Number(b.entry?.stableford_points ?? b.totals?.points ?? -1);
+      return bOOM - aOOM || bPoints - aPoints || Number(a.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) - Number(b.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
+    });
     const header = table.querySelector('thead');
     if (!header || header.textContent.replace(/\s+/g, ' ').trim().indexOf('OOM') < 0) return;
     const rows = people.map(item => {
