@@ -191,3 +191,51 @@ function handicap(roundId) {
   const hasDisplayOnly = recent.some(item => item.score_differential == null && item.historic_display_differential != null);
   return `<p class="eyebrow">${esc(current.first_name)} ${esc(current.surname)}</p><h1>Your handicap</h1><section class="index-card"><p class="eyebrow">Current society index</p><div class="index">${index ? Number(index.index_value).toFixed(1) : '—'}</div><p class="index-note">Club handicap: <strong>${club == null ? '—' : Number(club).toFixed(1)}</strong><br>Submitted: ${submitted}</p></section>${qualifyingDifferentialChart(chartRounds, index?.index_value)}${hasDisplayOnly ? '<p class="intro">Historic display-only differentials are shown for reference and do not affect your current index.</p>' : ''}<section class="section"><div class="section-head"><h2>Latest rounds</h2><span class="pill">Tap a round</span></div>${recent.length ? `<table class="table"><tbody>${recent.slice(0,12).map(item => { const differential = displayedDifferential(item); return `<tr data-round-id="${item.id}" style="cursor:pointer"><td><strong>${date(item.fixture_date)}</strong><br><span>${esc(item.fixture_name)}${item.score_differential == null && differential != null ? ' · historic' : ''}</span></td><td>${differential == null ? '—' : Number(differential).toFixed(1)}</td></tr>`; }).join('')}</tbody></table>` : empty('No rounds available.')}</section>`;
 }
+
+// Load the Stableford points used to show transparent fixture countbacks.
+const loadWithCountbackData = load;
+load = async function() {
+  await loadWithCountbackData();
+  const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, stableford_points');
+  if (error) throw error;
+  state.holeScores = data || [];
+  render();
+};
+
+function fixtureCountback(entryId) {
+  const scores = (state.holeScores || []).filter(item => item.fixture_entry_id === entryId);
+  const total = (from, to) => {
+    const values = scores.filter(item => item.hole_number >= from && item.hole_number <= to);
+    return values.length ? values.reduce((sum, item) => sum + Number(item.stableford_points || 0), 0) : null;
+  };
+  const single = hole => scores.find(item => item.hole_number === hole)?.stableford_points ?? null;
+  return [total(10, 18), total(13, 18), total(16, 18), single(18), total(1, 9), total(4, 9), total(7, 9), single(9)];
+}
+
+function fixtures(fixtureId) {
+  const fixture = state.fixtures.find(item => item.id === fixtureId);
+  if (!fixture) {
+    const years = [...new Set(state.fixtures.map(item => item.fixture_date.slice(0, 4)))].sort().reverse();
+    return `<p class="eyebrow">Society calendar</p><h1>Fixtures & results</h1>${years.map(year => `<section class="section"><h2>${year}</h2>${state.fixtures.filter(item => item.fixture_date.startsWith(year)).map(fixtureRow).join('')}</section>`).join('')}`;
+  }
+  const course = setup(fixture.course_setup_id);
+  const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixture.id).map(item => ({ ...item, entry: state.entries.find(score => score.fixture_id === fixture.id && score.player_id === item.player_id) }));
+  const hasScores = people.some(item => item.entry);
+  people.sort((a, b) => {
+    const aPosition = a.entry?.competition_position, bPosition = b.entry?.competition_position;
+    if (aPosition != null || bPosition != null) return (aPosition ?? Number.MAX_SAFE_INTEGER) - (bPosition ?? Number.MAX_SAFE_INTEGER) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
+    if (hasScores) return Number(b.entry?.stableford_points ?? -1) - Number(a.entry?.stableford_points ?? -1) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
+    return `${a.players?.surname}`.localeCompare(`${b.players?.surname}`) || `${a.players?.first_name}`.localeCompare(`${b.players?.first_name}`);
+  });
+  const rows = people.map(item => {
+    const index = item.handicap_index_override ?? snapshot(item.player_id)?.index_value, entry = item.entry;
+    const name = `${esc(item.players?.first_name)} ${esc(item.players?.surname)}${item.is_guest ? ' (Guest)' : ''}`;
+    const playerCell = entry?.id ? `<a class="text-link" href="#scorecard/${entry.id}">${name}</a>` : name;
+    return `<tr><td>${entry?.competition_position ?? '—'}</td><td>${playerCell}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${course && index != null ? playingHandicap(index, fixture, course) : '—'}</td><td>${entry ? (entry.gross_score == null ? 'NR' : entry.gross_score) : '—'}</td><td>${entry?.nett_score ?? '—'}</td><td>${entry?.stableford_points ?? '—'}</td><td>${entry?.order_of_merit_points ?? '—'}</td></tr>`;
+  }).join('');
+  const scored = people.filter(item => item.entry?.gross_score != null && item.entry?.stableford_points != null);
+  const fifthPoints = scored[4]?.entry?.stableford_points;
+  const countbackPeople = fifthPoints == null ? [] : scored.filter((item, index) => index < 5 || Number(item.entry.stableford_points) === Number(fifthPoints));
+  const countback = countbackPeople.length ? `<details class="section countback-card"><summary><strong>Countback confirmation</strong></summary><p class="intro">Top five and anyone tied with fifth are shown. Compare from left to right only when total points are tied.</p><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Pts</th><th>10–18</th><th>13–18</th><th>16–18</th><th>18</th><th>1–9</th><th>4–9</th><th>7–9</th><th>9</th></tr></thead><tbody>${countbackPeople.map(item => { const values = fixtureCountback(item.entry.id).map(value => value == null ? '—' : value); return `<tr><td>${item.entry.competition_position ?? '—'}</td><td>${esc(item.players?.first_name)} ${esc(item.players?.surname)}</td><td>${item.entry.stableford_points}</td>${values.map(value => `<td>${value}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div></details>` : '';
+  return `<p class="eyebrow">${date(fixture.fixture_date)}</p><h1>${esc(fixture.name)}${fixture.competition_name ? ` – ${esc(fixture.competition_name)}` : ''}</h1>${course ? `<p class="intro">Par ${course.par} · Slope ${course.slope_rating} · Course rating ${course.course_rating}</p>` : ''}<section class="section"><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Index</th><th>Playing</th><th>Gross</th><th>Nett</th><th>Pts</th><th>OOM</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No participants added.</td></tr>'}</tbody></table></div>${hasScores && people.some(item => item.entry?.competition_position == null) ? '<p class="intro">Finalise results to apply the countback and Order of Merit positions.</p>' : ''}</section>${countback}`;
+}
