@@ -2,13 +2,15 @@
 // still authoritative and must remain visible in the fixtures/results view.
 function fixtures(fixtureId) {
   if (fixtureId === 'historical') {
-    const historical = state.fixtures.filter(item => item.is_historical).sort((a, b) => `${b.fixture_date}${b.tee_time || ''}`.localeCompare(`${a.fixture_date}${a.tee_time || ''}`));
+    const historical = state.fixtures.filter(item => item.is_historical || item.status === 'archived').sort((a, b) => `${b.fixture_date}${b.tee_time || ''}`.localeCompare(`${a.fixture_date}${a.tee_time || ''}`));
     const years = [...new Set(historical.map(item => item.fixture_date.slice(0, 4)))].sort((a, b) => Number(b) - Number(a));
     return `<p class="eyebrow">Society archive</p><h1>Historical results</h1><p class="intro">Imported historic results are retained for viewing only and do not affect current handicaps or Order of Merit.</p><p>${link('fixtures', 'Back to Fixtures & results')}</p>${historical.length ? years.map(year => `<section class="section"><h2>${year}</h2>${historical.filter(item => item.fixture_date.startsWith(year)).map(fixtureRow).join('')}</section>`).join('') : empty('No historical fixtures are available.')}`;
   }
   const fixture = state.fixtures.find(item => item.id === fixtureId);
   if (!fixture) {
-    const isHistorical = item => Boolean(item.is_historical);
+    // Older historical imports are archived even where their historic flag was
+    // not retained. Treat both forms as archive-only, never as live results.
+    const isHistorical = item => Boolean(item.is_historical) || item.status === 'archived';
     const isCompleted = item => ['completed', 'published', 'archived'].includes(item.status);
     const byDate = (a, b) => `${a.fixture_date}${a.tee_time || ''}`.localeCompare(`${b.fixture_date}${b.tee_time || ''}`);
     const groupedByYear = list => {
