@@ -71,7 +71,36 @@
     if (message) card.parentElement.insertBefore(card, message);
   };
 
-  const wire = () => { addSeasonYearStarter(); tidyFixtureOverride(); };
+  // Several display enhancements wrap the fixture renderer. Apply the public
+  // result order to the finished table as a final safeguard: OOM points first,
+  // then Stableford points. This keeps the visible table correct regardless of
+  // which enhancement rendered the original rows.
+  const tidyResultOrder = () => {
+    const fixtureId = (location.hash.match(/^#fixtures\/([^/]+)/) || [])[1];
+    const fixture = fixtureId && state.fixtures.find(item => item.id === fixtureId);
+    if (!fixture || ['draft', 'scheduled'].includes(fixture.status)) return;
+    const body = app.querySelector('.table tbody');
+    if (!body || body.dataset.oomSorted === fixtureId) return;
+    const rows = [...body.querySelectorAll(':scope > tr')];
+    const entryFor = row => {
+      const href = row.querySelector('a[href^="#scorecard/"]')?.getAttribute('href');
+      const entryId = href?.split('/')[1];
+      return entryId ? state.entries.find(entry => entry.id === entryId) : null;
+    };
+    const scoredRows = rows.map(row => ({ row, entry: entryFor(row) }));
+    if (!scoredRows.some(item => item.entry)) return;
+    scoredRows.sort((a, b) => {
+      const aOOM = Number(a.entry?.order_of_merit_points ?? -1);
+      const bOOM = Number(b.entry?.order_of_merit_points ?? -1);
+      const aPoints = Number(a.entry?.stableford_points ?? -1);
+      const bPoints = Number(b.entry?.stableford_points ?? -1);
+      return bOOM - aOOM || bPoints - aPoints || Number(a.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) - Number(b.entry?.competition_position ?? Number.MAX_SAFE_INTEGER);
+    });
+    scoredRows.forEach(item => body.append(item.row));
+    body.dataset.oomSorted = fixtureId;
+  };
+
+  const wire = () => { addSeasonYearStarter(); tidyFixtureOverride(); tidyResultOrder(); };
   new MutationObserver(wire).observe(app, { childList: true, subtree: true });
   window.addEventListener('hashchange', wire);
   wire();
