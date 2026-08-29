@@ -49,8 +49,7 @@
       <div id="course-scan-message" class="admin-message"></div>
       <div id="course-review"></div></section>
       <section class="course-library-section course-library-reuse"><h3>3. Reuse Existing Scorecard</h3><p>Choose a draft fixture and a saved course tee. Review all 18 holes before attaching that exact dated version to the fixture.</p><div id="course-library-reuse">Loading saved scorecards…</div></section>
-      <section class="course-library-section course-library-attach"><h3>4. Attach Scorecard to Fixture</h3><p>Attach a previously reviewed course and tee to a fixture without using the reuse preview above.</p><div id="course-library-attach">Loading fixture options…</div></section>
-      <section class="course-library-existing"><div class="course-library-heading"><h3>Saved course tees</h3><button class="secondary" type="button" id="saved-course-tees-toggle" aria-expanded="false">Expand</button></div><div id="course-library-list" hidden>Loading saved setups…</div></section>`;
+      <section class="course-library-section course-library-attach"><h3>4. Attach Scorecard to Fixture</h3><p>Attach a previously reviewed course and tee to a fixture without using the reuse preview above.</p><div id="course-library-attach">Loading fixture options…</div></section>`;
     panel.prepend(card);
     document.querySelector('#course-scan-form')?.addEventListener('submit', scanCard);
     document.querySelector('#manual-course-review')?.addEventListener('click', () => {
@@ -59,7 +58,6 @@
     });
     loadVersions();
     renderFixtureScorecardReview();
-    document.querySelector('#saved-course-tees-toggle')?.addEventListener('click', toggleSavedCourseTees);
   };
 
   const setMessage = (text, error = false) => {
@@ -131,24 +129,11 @@
   }
 
   async function loadVersions() {
-    const target = document.querySelector('#course-library-list');
-    if (!target) return;
     const { data, error } = await client.from('course_setups').select('id, tee_name, course_rating, slope_rating, par, effective_from, retired_on, courses(name)').order('effective_from', { ascending: false });
-    if (error) { target.textContent = 'Run the Course & tee versions SQL upgrade to show dated setup history.'; return; }
+    if (error) { setMessage('Could not load saved course tees: ' + error.message, true); return; }
     savedVersions = data || [];
-    target.innerHTML = savedVersions.length ? `<table class="table"><thead><tr><th>Course</th><th>Tee</th><th>From</th><th>Rating / slope</th></tr></thead><tbody>${savedVersions.map(item => `<tr><td>${escHtml(item.courses?.name)}</td><td>${escHtml(item.tee_name)}</td><td>${escHtml(item.effective_from)}</td><td>${item.course_rating} / ${item.slope_rating}</td></tr>`).join('')}</tbody></table>` : 'No saved course tees yet.';
     renderReuseControls();
     renderFixtureScorecardReview();
-  }
-
-  function toggleSavedCourseTees() {
-    const button = document.querySelector('#saved-course-tees-toggle');
-    const list = document.querySelector('#course-library-list');
-    if (!button || !list) return;
-    const expanding = list.hidden;
-    list.hidden = !expanding;
-    button.textContent = expanding ? 'Minimise' : 'Expand';
-    button.setAttribute('aria-expanded', String(expanding));
   }
 
   const versionLabel = version => `${version.courses?.name || 'Course'} · ${version.tee_name} · from ${version.effective_from}`;
