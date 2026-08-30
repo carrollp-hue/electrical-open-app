@@ -1,0 +1,16 @@
+.club-handicap-used {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  background: rgba(104, 205, 148, .12);
+  color: var(--text);
+  font-size: .9rem;
+}
+
+.club-handicap-reminder {
+  border: 1px solid var(--green);
+  background: rgba(104, 205, 148, .08);
+}
+
+.club-handicap-reminder h2 { margin-top: 0; }
