@@ -238,3 +238,24 @@ function fixtures(fixtureId) {
   const countback = countbackPeople.length ? `<details class="section countback-card"><summary><strong>Countback confirmation</strong></summary><p class="intro">Top five and anyone tied with fifth are shown. Compare from left to right only when total points are tied.</p><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Pts</th><th>10–18</th><th>13–18</th><th>16–18</th><th>18</th><th>1–9</th><th>4–9</th><th>7–9</th><th>9</th></tr></thead><tbody>${countbackPeople.map(item => { const values = fixtureCountback(item.entry.id).map(value => value == null ? '—' : value); return `<tr><td>${item.entry.competition_position ?? '—'}</td><td>${esc(item.players?.first_name)} ${esc(item.players?.surname)}</td><td>${item.entry.stableford_points}</td>${values.map(value => `<td>${value}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div></details>` : '';
   return `<p class="eyebrow">${date(fixture.fixture_date)}</p><h1>${esc(fixture.name)}${fixture.competition_name ? ` – ${esc(fixture.competition_name)}` : ''}</h1>${course ? `<p class="intro">Par ${course.par} · Slope ${course.slope_rating} · Course rating ${course.course_rating}</p>` : ''}<section class="section"><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Index</th><th>Playing</th><th>Gross</th><th>Nett</th><th>Pts</th><th>OOM</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No participants added.</td></tr>'}</tbody></table></div>${hasScores && people.some(item => item.entry?.competition_position == null) ? '<p class="intro">Finalise results to apply the countback and Order of Merit positions.</p>' : ''}</section>${countback}`;
 }
+
+// Show the active winner-cut reduction alongside the index.  The calculation
+// uses only the most recent 12 qualifying rounds, so the display does too.
+const loadWinnerCutData = load;
+load = async function() {
+  await loadWinnerCutData();
+  const { data, error } = await client.from('fixture_entries').select('id, winner_cut');
+  if (error) throw error;
+  const winnerCuts = new Map((data || []).map(item => [item.id, Number(item.winner_cut || 0)]));
+  state.entries = state.entries.map(item => ({ ...item, winner_cut: winnerCuts.get(item.id) || 0 }));
+  render();
+};
+
+const handicapWithWinnerCutData = handicap;
+handicap = function(roundId) {
+  const page = handicapWithWinnerCutData(roundId);
+  if (roundId) return page;
+  const activeWinnerCuts = entries(player()?.id).filter(item => item.score_differential != null).slice(0, 12).reduce((total, item) => total + Number(item.winner_cut || 0), 0);
+  const winnerCutNote = activeWinnerCuts > 0 ? `−${activeWinnerCuts.toFixed(1)}` : 'None';
+  return page.replace('</div><p class="index-note">', `</div><p class="index-note">Winner cuts applied: <strong>${winnerCutNote}</strong><br>`);
+};
