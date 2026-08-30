@@ -6,6 +6,8 @@
 
   const client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
   const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  // Opening the app is treated as acknowledging the notification badge.
+  if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
   const toUint8 = value => {
     const padded = value + '='.repeat((4 - value.length % 4) % 4);
     const binary = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
