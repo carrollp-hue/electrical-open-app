@@ -4,7 +4,7 @@ alter table public.fixture_entries
   add column if not exists historic_display_differential numeric(8,4);
 
 -- Dunstable Downs, CA Trophy, 9 August 2026: preserve the workbook values
--- without making any of them qualifying rounds in the app.
+-- as an audit reference. The app's WHS-calculated score_differential remains authoritative.
 with source (surname, first_name, differential) as (
   values
     ('KEANE','Matt',13.0534::numeric), ('O''NEILL','Gary',23.7690::numeric),
@@ -25,7 +25,3 @@ join public.players p on p.surname = source.surname and p.first_name = source.fi
 where e.fixture_id = '9cd569f1-eb01-4a35-b9d0-363b6c6fabde'
   and e.player_id = p.id;
 
--- Safeguard: display-only values must not be copied into qualifying values.
-update public.fixture_entries
-set score_differential = null
-where fixture_id = '9cd569f1-eb01-4a35-b9d0-363b6c6fabde';

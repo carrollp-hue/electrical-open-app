@@ -101,14 +101,13 @@ begin
       + case when hole.stroke_index <= mod(d.playing_handicap, 18) then 1 else 0 end as value
   ) strokes;
 
-  -- The Non Return trigger assigns a +5 differential. Clear it so this import
-  -- remains display-only and cannot change historic/current handicap indexes.
-  update public.fixture_entries set score_differential = null where fixture_id = v_fixture_id;
+  -- Differential values are applied by the later WHS recalculation migration.
+  -- Do not clear them here: the completed 2026 cards are qualifying app data.
 end $$;
 
 commit;
 
--- Verification: 19 entrants, 12 completed cards, 216 holes and no differentials.
+-- Verification: 19 entrants, 12 completed cards and 216 holes.
 select
   (select count(*) from public.fixture_participants where fixture_id = '9cd569f1-eb01-4a35-b9d0-363b6c6fabde') as participants,
   (select count(*) from public.fixture_entries where fixture_id = '9cd569f1-eb01-4a35-b9d0-363b6c6fabde' and score_status = 'completed') as completed_cards,
