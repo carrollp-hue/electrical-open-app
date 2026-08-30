@@ -2,8 +2,13 @@
   const originalRender = render;
   render = function () {
     originalRender();
+    enhance();
+  };
+
+  const isMembersPage = () => ['#admin', '#admin/members'].includes(location.hash);
+  function enhance() {
     const panel = document.querySelector('.admin-panel');
-    if (location.hash !== '#admin/members' || !panel) return;
+    if (!isMembersPage() || !panel) return;
     const card = Array.from(panel.querySelectorAll('.admin-card')).find(item => item.querySelector('h2')?.textContent.trim() === 'Players available to add');
     if (!card || card.dataset.collapseReady) return;
 
@@ -24,7 +29,9 @@
     };
     setExpanded(false);
     toggle.addEventListener('click', () => setExpanded(toggle.getAttribute('aria-expanded') !== 'true'));
-  };
+  }
 
-  setTimeout(() => { if (session) render(); }, 0);
+  new MutationObserver(enhance).observe(document.querySelector('#app'), { childList: true, subtree: true });
+  window.addEventListener('hashchange', () => setTimeout(enhance, 0));
+  setTimeout(enhance, 0);
 })();
