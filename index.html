@@ -19,7 +19,7 @@
     <div class="app-shell">
       <header class="topbar">
         <a class="brand" href="#home" aria-label="Electrical Open home"><span class="flag" aria-hidden="true">⚑</span><span>Electrical Open</span></a>
-        <div class="account-actions"><a class="help-quick" href="#help">Help</a><a class="admin-quick" href="#admin" id="admin-quick" hidden>Admin</a><button class="profile-button" type="button" aria-label="Choose player" id="player-button"><span id="initials">EO</span></button><span class="notification-indicator" id="notification-indicator" role="img" aria-label="Fixture notifications enabled" hidden>🔔</span><button class="signout-button" type="button" id="signout-button" hidden>Sign out</button></div>
+        <div class="account-actions"><a class="help-quick" href="#help">Help</a><a class="admin-quick" href="#admin/members" id="admin-quick" hidden>Admin</a><button class="profile-button" type="button" aria-label="Choose player" id="player-button"><span id="initials">EO</span></button><span class="notification-indicator" id="notification-indicator" role="img" aria-label="Fixture notifications enabled" hidden>🔔</span><button class="signout-button" type="button" id="signout-button" hidden>Sign out</button></div>
       </header>
       <main id="app" tabindex="-1"></main>
       <nav class="bottom-nav" aria-label="Main navigation" id="main-nav" hidden>
@@ -28,7 +28,7 @@
         <a href="#scorecard" data-route="scorecard" id="scorecard-nav"><span aria-hidden="true">✎</span>Scorecard</a>
         <a href="#fixtures" data-route="fixtures"><span aria-hidden="true">□</span>Fixtures</a>
         <a href="#merit" data-route="merit"><span aria-hidden="true">★</span>Merit</a>
-        <a href="#admin" data-route="admin" id="admin-nav" class="legacy-admin-nav" hidden><span aria-hidden="true">⚙</span>Admin</a>
+        <a href="#admin/members" data-route="admin" id="admin-nav" class="legacy-admin-nav" hidden><span aria-hidden="true">⚙</span>Admin</a>
       </nav>
     </div>
     <dialog id="player-dialog">
@@ -71,5 +71,6 @@
     <script src="club-handicap-reminder.js?v=143"></script>
     <script src="club-handicap-removal.js?v=1"></script>
     <script src="membership-available-collapse.js?v=1"></script>
+    <script src="admin-default-route.js?v=1"></script>
   </body>
 </html>
