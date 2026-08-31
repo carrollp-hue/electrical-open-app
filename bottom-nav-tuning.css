@@ -16,6 +16,10 @@
   touch-action: manipulation;
 }
 
+.bottom-nav[hidden] {
+  display: none !important;
+}
+
 .bottom-nav a span {
   font-size: 1.65rem;
   line-height: 1;
