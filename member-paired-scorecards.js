@@ -1,5 +1,5 @@
 (() => {
-  let active = null, saveTimer;
+  let active = null, saveTimer, activeAssignments = [];
   const fixtureFor = id => state.fixtures.find(item => item.id === id);
   const participant = (fixtureId, playerId) => (state.fixtureParticipants || []).find(item => item.fixture_id === fixtureId && item.player_id === playerId);
   const nearestHandicap = value => value < 0 ? Math.ceil(value - .5) : Math.floor(value + .5);
@@ -112,9 +112,13 @@
   const draw = () => {
     const target = document.querySelector('#member-paired-scorecard'), fixture = fixtureFor(active?.fixture_id), course = setup(fixture?.course_setup_id), current = player();
     if (!target || !fixture || !course || !current) return;
-    const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixture.id && item.player_id !== current.id).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
+    const claimedByOtherPlayers = new Set(activeAssignments.filter(item => item.scorer_player_id !== current.id).map(item => item.marked_player_id));
+    const people = (state.fixtureParticipants || [])
+      .filter(item => item.fixture_id === fixture.id && item.player_id !== current.id)
+      .filter(item => item.player_id === active.marked_player_id || !claimedByOtherPlayers.has(item.player_id))
+      .sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
     const ownLocked = active.own_status === 'submitted', markedLocked = active.marked_status === 'submitted', card = holes(course.id);
-    target.innerHTML = `<section class="section paired-scorecard-section"><div class="section-head"><h2>Paired scorecard</h2><span class="pill">${ownLocked && markedLocked ? 'Submitted' : 'Draft'}</span></div><p class="intro">Record your score and one other participant’s score. Drafts save automatically.</p><label class="paired-player-picker">Player A to mark<select id="paired-player-a" ${markedLocked ? 'disabled' : ''}><option value="">Choose Player A</option>${people.map(item => `<option value="${item.player_id}" ${item.player_id === active.marked_player_id ? 'selected' : ''}>${esc(displayName(item.players))}</option>`).join('')}</select></label><p class="paired-index-summary" id="paired-index-summary"></p><div class="table-responsive"><table class="table paired-scorecard-table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th><th>Me<br><small>shots</small></th><th>Me<br><small>pts</small></th><th>A<br><small>shots</small></th><th>A<br><small>pts</small></th></tr></thead><tbody>${card.map((hole, index) => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td><td><input data-paired-score="own" type="number" min="1" max="20" inputmode="numeric" value="${active.own_scores?.[index] ?? ''}" ${ownLocked ? 'disabled' : ''}></td><td data-paired-points="own-${index + 1}">—</td><td><input data-paired-score="marked" type="number" min="1" max="20" inputmode="numeric" value="${active.marked_scores?.[index] ?? ''}" ${markedLocked ? 'disabled' : ''}></td><td data-paired-points="marked-${index + 1}">—</td></tr>${hole.hole_number === 9 ? '<tr class="front-nine-subtotal"><td><strong>Out</strong></td><td colspan="2"></td><td></td><td id="paired-own-total">—</td><td></td><td id="paired-marked-total">—</td></tr>' : ''}`).join('')}</tbody></table></div><div class="paired-actions"><button class="secondary" type="button" id="paired-save">Save draft</button><button class="primary" type="button" id="paired-submit" ${ownLocked && markedLocked ? 'disabled' : ''}>Review & submit</button></div><p class="paired-message" id="paired-message"></p><p class="paired-comparison" id="paired-comparison">Choose Player A before submitting. Points appear once a Player A is selected.</p></section>`;
+    target.innerHTML = `<section class="section paired-scorecard-section"><div class="section-head"><h2>Paired scorecard</h2><span class="pill">${ownLocked && markedLocked ? 'Submitted' : 'Draft'}</span></div><p class="intro">Record your score and one other participant’s score. Each participant can be marked once, so every card receives an independent check.</p><label class="paired-player-picker">Player A to mark<select id="paired-player-a" ${markedLocked ? 'disabled' : ''}><option value="">Choose Player A</option>${people.map(item => `<option value="${item.player_id}" ${item.player_id === active.marked_player_id ? 'selected' : ''}>${esc(displayName(item.players))}</option>`).join('')}</select></label><p class="paired-index-summary" id="paired-index-summary"></p><div class="table-responsive"><table class="table paired-scorecard-table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th><th>Me<br><small>shots</small></th><th>Me<br><small>pts</small></th><th>A<br><small>shots</small></th><th>A<br><small>pts</small></th></tr></thead><tbody>${card.map((hole, index) => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td><td><input data-paired-score="own" type="number" min="1" max="20" inputmode="numeric" value="${active.own_scores?.[index] ?? ''}" ${ownLocked ? 'disabled' : ''}></td><td data-paired-points="own-${index + 1}">—</td><td><input data-paired-score="marked" type="number" min="1" max="20" inputmode="numeric" value="${active.marked_scores?.[index] ?? ''}" ${markedLocked ? 'disabled' : ''}></td><td data-paired-points="marked-${index + 1}">—</td></tr>${hole.hole_number === 9 ? '<tr class="front-nine-subtotal"><td><strong>Out</strong></td><td colspan="2"></td><td></td><td id="paired-own-total">—</td><td></td><td id="paired-marked-total">—</td></tr>' : ''}`).join('')}</tbody></table></div><div class="paired-actions"><button class="secondary" type="button" id="paired-save">Save draft</button><button class="primary" type="button" id="paired-submit" ${ownLocked && markedLocked ? 'disabled' : ''}>Review & submit</button></div><p class="paired-message" id="paired-message"></p><p class="paired-comparison" id="paired-comparison">Choose Player A before submitting. Points appear once a Player A is selected.</p></section>`;
     const subtotalRow = (label, key) => `<tr class="${key === 'out' ? 'front-nine-subtotal ' : ''}${key === 'out-repeat' ? 'scorecard-out-repeat ' : ''}paired-scorecard-subtotal ${key === 'total' ? 'paired-scorecard-total' : ''}"><td><strong>${label}</strong></td><td id="paired-${key}-par">—</td><td></td><td id="paired-${key}-own-shots">—</td><td id="paired-${key}-own-points">—</td><td id="paired-${key}-marked-shots">—</td><td id="paired-${key}-marked-points">—</td></tr>`;
     const outRow = target.querySelector('.front-nine-subtotal');
     if (outRow) outRow.outerHTML = subtotalRow('Out', 'out');
@@ -133,11 +137,15 @@
     target.querySelector('#paired-comparison')?.insertAdjacentHTML('beforebegin', '<section class="scorecard-verification" id="paired-verification"><h3>Scorecard verification</h3><p>Checking submitted cards…</p></section>');
     updateCalculations(); compare();
     document.querySelector('#paired-player-a')?.addEventListener('change', async event => {
+      const previousPlayer = active.marked_player_id;
       active.own_scores = scores('own');
       active.marked_player_id = event.target.value || null;
       active.marked_scores = [];
       draw();
-      await save(false);
+      if (!await save(false)) {
+        active.marked_player_id = previousPlayer;
+        draw();
+      }
     });
     document.querySelectorAll('[data-paired-score]').forEach(input => input.addEventListener('input', () => { updateCalculations(); clearTimeout(saveTimer); saveTimer = setTimeout(() => save(false), 700); }));
     document.querySelector('#paired-save')?.addEventListener('click', () => save(false));
@@ -153,14 +161,17 @@
     const ownIndex = indexFor(fixture.id, current.id), markedIndex = active.marked_player_id && indexFor(fixture.id, active.marked_player_id);
     const payload = { fixture_id: fixture.id, scorer_player_id: current.id, marked_player_id: active.marked_player_id, own_scores: own, marked_scores: marked, own_handicap_index: ownIndex, own_course_handicap: ownIndex == null ? null : courseHandicapFor(ownIndex, course), own_playing_handicap: ownIndex == null ? null : playingFor(fixture.id, current.id, ownIndex, fixture, course), marked_handicap_index: markedIndex, marked_course_handicap: markedIndex == null ? null : courseHandicapFor(markedIndex, course), marked_playing_handicap: markedIndex == null ? null : playingFor(fixture.id, active.marked_player_id, markedIndex, fixture, course), own_status: submit ? 'submitted' : active.own_status, marked_status: submit ? 'submitted' : active.marked_status };
     const { data, error } = await client.from('member_scorecards').upsert(payload, { onConflict: 'fixture_id,scorer_player_id' }).select().single();
-    if (error) return message(error.message, true);
+    if (error) { message(error.message, true); return false; }
     active = data;
+    activeAssignments = activeAssignments.filter(item => item.scorer_player_id !== current.id);
+    if (active.marked_player_id) activeAssignments.push({ scorer_player_id: current.id, marked_player_id: active.marked_player_id });
     if (submit) {
       draw();
     } else {
       const status = document.querySelector('#paired-message');
       if (status) status.textContent = 'Draft saved.';
     }
+    return true;
   };
 
   const open = async fixtureId => {
@@ -168,6 +179,8 @@
     const { data, error } = await client.from('member_scorecards').select('*').eq('fixture_id', fixtureId).eq('scorer_player_id', current.id).maybeSingle();
     if (error) return message(error.message, true);
     active = data || { fixture_id: fixtureId, scorer_player_id: current.id, marked_player_id: null, own_scores: [], marked_scores: [], own_status: 'draft', marked_status: 'draft' };
+    const { data: assignments, error: assignmentsError } = await client.from('member_scorecards').select('scorer_player_id, marked_player_id').eq('fixture_id', fixtureId).not('marked_player_id', 'is', null);
+    activeAssignments = assignmentsError ? [] : assignments || [];
     draw();
   };
 
