@@ -14,10 +14,20 @@
     const { data } = await client.from('user_roles').select('role');
     state.isMembershipAdmin = Boolean(data?.some(item => item.role === 'membership_admin'));
     if (state.isMembershipAdmin) state.isStaff = true;
+    window.electricalOpenAdminAccessReady = true;
     render();
     restrictMembershipAdmin();
+  };
+  const initialiseMembershipAccess = async () => {
+    const { data } = await client.from('user_roles').select('role');
+    state.isMembershipAdmin = Boolean(data?.some(item => item.role === 'membership_admin'));
+    if (state.isMembershipAdmin) state.isStaff = true;
+    window.electricalOpenAdminAccessReady = true;
+    restrictMembershipAdmin();
+    if (location.hash.startsWith('#admin') && Array.isArray(state.memberDirectory)) render();
   };
   window.addEventListener('hashchange', restrictMembershipAdmin);
   new MutationObserver(restrictMembershipAdmin).observe(document.querySelector('#app'), { childList: true, subtree: true });
   restrictMembershipAdmin();
+  initialiseMembershipAccess();
 })();

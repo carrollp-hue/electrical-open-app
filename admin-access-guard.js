@@ -4,7 +4,7 @@
     document.querySelector('#admin-nav').hidden = true;
     const adminQuick = document.querySelector('#admin-quick');
     if (adminQuick) adminQuick.hidden = !canAdminister;
-    if (!canAdminister && location.hash.startsWith('#admin')) location.hash = '#home';
+    if (window.electricalOpenAdminAccessReady && !canAdminister && location.hash.startsWith('#admin')) location.hash = '#home';
   };
   const guardedLoad = load;
   load = async function () {
