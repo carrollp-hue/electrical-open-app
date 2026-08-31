@@ -11,6 +11,9 @@
   height: calc(78px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   transform: translateZ(0);
+  z-index: 100;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .bottom-nav a span {
