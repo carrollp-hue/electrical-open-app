@@ -9,7 +9,7 @@
   function enhance() {
     const panel = document.querySelector('.admin-panel');
     if (!isMembersPage() || !panel) return;
-    const card = Array.from(panel.querySelectorAll('.admin-card')).find(item => item.querySelector('h2')?.textContent.trim() === 'Players available to add');
+    const card = panel.querySelector('#season-member-add-form')?.closest('.admin-card');
     if (!card || card.dataset.collapseReady) return;
 
     card.dataset.collapseReady = 'true';
