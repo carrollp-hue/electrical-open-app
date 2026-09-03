@@ -6,7 +6,11 @@
       return;
     }
     document.querySelectorAll('.admin-tabs a').forEach(tab => { if (!['#admin/members', '#admin/fixtures', '#admin/participants'].includes(tab.getAttribute('href'))) tab.remove(); });
-    document.querySelectorAll('.admin-card').forEach(card => { if (/club handicap|special adjustment/i.test(card.querySelector('h2')?.textContent || '')) card.remove(); });
+    // Membership administrators must not edit club handicaps or special
+    // adjustments directly, but they do need to see member removal requests.
+    document.querySelectorAll('.admin-card').forEach(card => {
+      if (/^club handicap\s*\/\s*special adjustment$/i.test(card.querySelector('h2')?.textContent?.trim() || '')) card.remove();
+    });
   };
   const membershipLoad = load;
   load = async function () {

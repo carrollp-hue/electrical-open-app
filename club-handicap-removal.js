@@ -35,7 +35,7 @@
 
   function addAdminRequests() {
     const panel = document.querySelector('.admin-panel');
-    if (location.hash !== '#admin/members' || !panel || document.querySelector('#club-handicap-removal-requests')) return;
+    if (!location.hash.startsWith('#admin/members') || !panel || document.querySelector('#club-handicap-removal-requests')) return;
     const requests = state.clubHandicapRemovalRequests || [];
     const rows = requests.length ? requests.map(request => `<tr><td>${esc(request.surname).toUpperCase()}, ${esc(request.first_name)}<br><span>Club handicap ${Number(request.club_handicap).toFixed(1)} · requested ${date(request.requested_at)}</span></td><td><button class="secondary" type="button" data-approve-club-removal="${request.request_id}">Remove club handicap</button></td></tr>`).join('') : '<tr><td>No pending removal requests.</td></tr>';
     panel.insertAdjacentHTML('beforeend', `<div class="admin-card" id="club-handicap-removal-requests"><h2>Club handicap removal requests</h2><table class="table"><tbody>${rows}</tbody></table></div>`);
