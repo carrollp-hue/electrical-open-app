@@ -17,7 +17,11 @@
   const originalHandicap = handicap;
   handicap = function (roundId) {
     const page = originalHandicap(roundId);
-    if (roundId || !player()?.club_handicap) return page;
+    const viewedPlayer = player();
+    const signedInPlayer = state.memberDirectory?.find(item => item.profile_id === session?.user?.id);
+    // Administrators can view other players' handicap pages, but a member can
+    // only ever request removal for their own linked player record.
+    if (roundId || !viewedPlayer?.club_handicap || viewedPlayer.id !== signedInPlayer?.id) return page;
     const request = `<section class="section club-handicap-removal"><h2>Leaving your golf club?</h2><p>If you no longer hold a club handicap, ask a membership administrator to remove it. Your society index will then be used.</p><p class="form-message" id="club-handicap-removal-message"></p><button class="secondary" type="button" id="request-club-handicap-removal">Request club handicap removal</button></section>`;
     return page.replace('</section>', '</section>' + request);
   };
