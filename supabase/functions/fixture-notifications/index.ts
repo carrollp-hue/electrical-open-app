@@ -2,7 +2,8 @@ import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 type Fixture = { id: string; name: string; fixture_date: string; tee_time?: string | null; status?: string | null };
-type Webhook = { type: 'INSERT' | 'UPDATE'; record: Fixture; old_record?: Fixture };
+type AppNotification = { title: string; body: string; url?: string | null; audience?: 'all' | 'membership_admin' };
+type Webhook = { type: 'INSERT' | 'UPDATE'; table?: string; record: Fixture | AppNotification; old_record?: Fixture };
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT')!, Deno.env.get('VAPID_PUBLIC_KEY')!, Deno.env.get('VAPID_PRIVATE_KEY')!);
@@ -11,7 +12,38 @@ const when = (fixture: Fixture) => `${fixture.fixture_date}${fixture.tee_time ? 
 
 Deno.serve(async request => {
   const payload = await request.json() as Webhook;
-  const fixture = payload.record, previous = payload.old_record;
+  if (payload.table === 'app_notifications') {
+    const notification = payload.record as AppNotification;
+    if (payload.type !== 'INSERT' || notification.audience !== 'membership_admin') {
+      return Response.json({ sent: 0, reason: 'No administrator notification required' });
+    }
+
+    const { data: roles, error: roleError } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', ['membership_admin', 'admin']);
+    if (roleError) return Response.json({ error: roleError.message }, { status: 500 });
+    const administratorIds = [...new Set((roles || []).map(role => role.user_id))];
+    if (!administratorIds.length) return Response.json({ sent: 0, reason: 'No administrators configured' });
+
+    const { data: subscriptions, error } = await supabase
+      .from('push_subscriptions')
+      .select('endpoint, p256dh, auth')
+      .in('profile_id', administratorIds);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+
+    const message = JSON.stringify({
+      title: notification.title,
+      body: notification.body,
+      url: notification.url || '/#admin/members',
+    });
+    const deliveries = await Promise.allSettled((subscriptions || []).map(subscription => webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, message)));
+    const expired = deliveries.flatMap((result, index) => result.status === 'rejected' && [404, 410].includes(result.reason?.statusCode) ? [subscriptions![index].endpoint] : []);
+    if (expired.length) await supabase.from('push_subscriptions').delete().in('endpoint', expired);
+    return Response.json({ sent: deliveries.length - expired.length });
+  }
+
+  const fixture = payload.record as Fixture, previous = payload.old_record;
   let title = '', body = '';
   if (payload.type === 'INSERT') {
     title = 'New Electrical Open fixture'; body = `${fixture.name} — ${when(fixture)}`;
