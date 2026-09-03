@@ -4,7 +4,18 @@ const app = document.querySelector('#app'), dialog = document.querySelector('#pl
 let session = null;
 let state = { isStaff: false, players: [], memberDirectory: [], snapshots: [], fixtures: [], entries: [], courseSetups: [], courseHoles: [], selectedPlayerId: null };
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
-const date = value => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' }).format(new Date(`${value}T12:00:00Z`));
+const date = value => {
+  const parsed = new Date(typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00Z` : value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' }).format(parsed)
+    : '—';
+};
+const dateTime = value => {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(parsed)
+    : '—';
+};
 const player = () => state.players.find(item => item.id === state.selectedPlayerId) || state.players[0];
 const snapshot = id => state.snapshots.find(item => item.player_id === id);
 const entries = id => state.entries.filter(item => item.player_id === id).sort((a, b) => b.fixture_date.localeCompare(a.fixture_date));
