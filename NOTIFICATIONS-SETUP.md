@@ -26,4 +26,4 @@ To notify membership and full administrators when a player asks for their club h
    - URL: the existing `fixture-notifications` Edge Function URL
    - Header: the same service-role authorisation header used by the fixture webhook
 
-When a request is submitted, only users with `membership_admin` or `admin` access can see the in-app update or receive its push notification. Each administrator must have enabled notifications on their own device.
+When a request is submitted, only users with `membership_admin` or `admin` access can see the in-app update or receive its push notification. When the request is approved, the requesting member receives a private confirmation notification. Each recipient must have enabled notifications on their own device.

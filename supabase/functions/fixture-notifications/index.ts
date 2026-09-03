@@ -2,7 +2,7 @@ import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 type Fixture = { id: string; name: string; fixture_date: string; tee_time?: string | null; status?: string | null };
-type AppNotification = { title: string; body: string; url?: string | null; audience?: 'all' | 'membership_admin' };
+type AppNotification = { title: string; body: string; url?: string | null; audience?: 'all' | 'membership_admin' | 'profile'; recipient_profile_id?: string | null };
 type Webhook = { type: 'INSERT' | 'UPDATE'; table?: string; record: Fixture | AppNotification; old_record?: Fixture };
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -14,22 +14,27 @@ Deno.serve(async request => {
   const payload = await request.json() as Webhook;
   if (payload.table === 'app_notifications') {
     const notification = payload.record as AppNotification;
-    if (payload.type !== 'INSERT' || notification.audience !== 'membership_admin') {
-      return Response.json({ sent: 0, reason: 'No administrator notification required' });
+    if (payload.type !== 'INSERT' || !['membership_admin', 'profile'].includes(notification.audience || '')) {
+      return Response.json({ sent: 0, reason: 'No targeted notification required' });
     }
 
-    const { data: roles, error: roleError } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .in('role', ['membership_admin', 'admin']);
-    if (roleError) return Response.json({ error: roleError.message }, { status: 500 });
-    const administratorIds = [...new Set((roles || []).map(role => role.user_id))];
-    if (!administratorIds.length) return Response.json({ sent: 0, reason: 'No administrators configured' });
+    let recipientIds: string[] = [];
+    if (notification.audience === 'membership_admin') {
+      const { data: roles, error: roleError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['membership_admin', 'admin']);
+      if (roleError) return Response.json({ error: roleError.message }, { status: 500 });
+      recipientIds = [...new Set((roles || []).map(role => role.user_id))];
+    } else if (notification.recipient_profile_id) {
+      recipientIds = [notification.recipient_profile_id];
+    }
+    if (!recipientIds.length) return Response.json({ sent: 0, reason: 'No eligible notification recipients' });
 
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
       .select('endpoint, p256dh, auth')
-      .in('profile_id', administratorIds);
+      .in('profile_id', recipientIds);
     if (error) return Response.json({ error: error.message }, { status: 500 });
 
     const message = JSON.stringify({
