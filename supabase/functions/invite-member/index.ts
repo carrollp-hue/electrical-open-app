@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type' };
 const url = Deno.env.get('SUPABASE_URL')!;
 const service = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+const appUrl = 'https://electrical-open.pages.dev/';
 
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -20,7 +21,10 @@ Deno.serve(async request => {
     const { data: player, error: playerError } = await service.from('players').select('id, profile_id, is_guest').eq('id', player_id).single();
     if (playerError || !player || player.is_guest || player.profile_id) return Response.json({ error: 'Choose an unlinked, non-guest player.' }, { status: 400, headers: cors });
 
-    const { data: invited, error: inviteError } = await service.auth.admin.inviteUserByEmail(email, { data: { display_name } });
+    const { data: invited, error: inviteError } = await service.auth.admin.inviteUserByEmail(email, {
+      data: { display_name },
+      redirectTo: appUrl,
+    });
     if (inviteError || !invited.user) return Response.json({ error: inviteError?.message || 'Could not create the invitation.' }, { status: 400, headers: cors });
     const userId = invited.user.id;
     const { error: profileError } = await service.from('profiles').upsert({ id: userId, display_name, password_change_required: true });
