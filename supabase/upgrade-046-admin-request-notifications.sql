@@ -99,3 +99,18 @@ begin
   end if;
 end;
 $function$;
+
+-- Deliver targeted notification rows to the existing push-notification Edge Function.
+-- The publishable key is intentionally public and lets the function keep JWT verification enabled.
+drop trigger if exists app_notifications_webhook on public.app_notifications;
+
+create trigger app_notifications_webhook
+after insert on public.app_notifications
+for each row
+execute function supabase_functions.http_request(
+  'https://xwzrtbjlztdtxvwckqrl.supabase.co/functions/v1/fixture-notifications',
+  'POST',
+  '{"Content-Type":"application/json","Authorization":"Bearer sb_publishable_g3_-xKPA7lmY92WxjjD2gQ_t0Tx7woL","apikey":"sb_publishable_g3_-xKPA7lmY92WxjjD2gQ_t0Tx7woL"}',
+  '{}',
+  '1000'
+);
