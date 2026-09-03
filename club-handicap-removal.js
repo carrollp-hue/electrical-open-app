@@ -31,6 +31,9 @@
     originalRender();
     document.querySelector('#request-club-handicap-removal')?.addEventListener('click', requestRemoval);
     addAdminRequests();
+    // The Admin page is assembled by several access-control scripts. Run once
+    // more after those changes settle so the requests card is never lost.
+    requestAnimationFrame(addAdminRequests);
   };
 
   function addAdminRequests() {
@@ -66,5 +69,6 @@
     await load(); location.hash = '#admin/members'; message('Request rejected. The member has been notified.');
   }
 
+  window.addEventListener('hashchange', () => setTimeout(addAdminRequests, 0));
   setTimeout(() => { if (session) load().catch(error => login(error.message)); }, 0);
 })();
