@@ -35,7 +35,7 @@ handicap = function (roundId) {
     && current?.profile_id === session?.user?.id
     && Date.now() - submittedAt.getTime() >= 30 * 24 * 60 * 60 * 1000
     && upcomingFixture;
-  const formattedSubmitted = submittedAt ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(submittedAt) : 'Not submitted';
+  const formattedSubmitted = submittedAt ? longDate(submittedAt) : 'Not submitted';
   const clubInUse = detail?.club_handicap_used && club != null;
   const clubNotice = clubInUse ? `<p class="club-handicap-used"><strong>Club handicap in use</strong><br>Your club handicap of ${Number(club).toFixed(1)} is lower than the calculated society index of ${Number(detail.calculated_society_index).toFixed(1)}.</p>` : '';
   const reminder = reminderDue && club != null ? `<section class="section club-handicap-reminder"><h2>Confirm your club handicap</h2><p>You are playing ${esc(upcomingFixture.name)} on ${date(upcomingFixture.fixture_date)}. Your club handicap was last confirmed on ${formattedSubmitted}; update it if it has changed, or confirm the same value to keep it current.</p><form class="admin-form" id="club-handicap-self-form"><label>Club handicap<input name="club_handicap" type="number" min="0" max="54" step="0.1" inputmode="decimal" value="${Number(club).toFixed(1)}" required></label><p class="form-message" id="club-handicap-self-message"></p><button class="primary" type="submit">Confirm club handicap</button></form></section>` : '';
