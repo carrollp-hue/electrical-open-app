@@ -37,9 +37,10 @@
     const panel = document.querySelector('.admin-panel');
     if (!location.hash.startsWith('#admin/members') || !panel || document.querySelector('#club-handicap-removal-requests')) return;
     const requests = state.clubHandicapRemovalRequests || [];
-    const rows = requests.length ? requests.map(request => `<tr><td>${esc(request.surname).toUpperCase()}, ${esc(request.first_name)}<br><span>Club handicap ${Number(request.club_handicap).toFixed(1)} · requested ${date(request.requested_at)}</span></td><td><button class="secondary" type="button" data-approve-club-removal="${request.request_id}">Remove club handicap</button></td></tr>`).join('') : '<tr><td>No pending removal requests.</td></tr>';
+    const rows = requests.length ? requests.map(request => `<tr><td>${esc(request.surname).toUpperCase()}, ${esc(request.first_name)}<br><span>Club handicap ${Number(request.club_handicap).toFixed(1)} · requested ${date(request.requested_at)}</span></td><td><button class="secondary" type="button" data-approve-club-removal="${request.request_id}">Remove club handicap</button> <button class="secondary" type="button" data-reject-club-removal="${request.request_id}">Reject request</button></td></tr>`).join('') : '<tr><td>No pending removal requests.</td></tr>';
     panel.insertAdjacentHTML('beforeend', `<div class="admin-card" id="club-handicap-removal-requests"><h2>Club handicap removal requests</h2><table class="table"><tbody>${rows}</tbody></table></div>`);
     document.querySelectorAll('[data-approve-club-removal]').forEach(button => button.addEventListener('click', () => approveRemoval(button)));
+    document.querySelectorAll('[data-reject-club-removal]').forEach(button => button.addEventListener('click', () => rejectRemoval(button)));
   }
 
   async function requestRemoval() {
@@ -56,6 +57,13 @@
     const { error } = await client.rpc('approve_club_handicap_removal', { p_request_id: button.dataset.approveClubRemoval });
     if (error) return message(error.message, true);
     await load(); location.hash = '#admin/members'; message('Club handicap removed and request approved.');
+  }
+
+  async function rejectRemoval(button) {
+    if (!window.confirm('Reject this request? The member’s club handicap will remain in place.')) return;
+    const { error } = await client.rpc('reject_club_handicap_removal', { p_request_id: button.dataset.rejectClubRemoval });
+    if (error) return message(error.message, true);
+    await load(); location.hash = '#admin/members'; message('Request rejected. The member has been notified.');
   }
 
   setTimeout(() => { if (session) load().catch(error => login(error.message)); }, 0);
