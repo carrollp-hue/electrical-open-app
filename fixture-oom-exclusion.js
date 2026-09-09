@@ -5,7 +5,11 @@
     const { data, error } = await client.from('fixtures').select('id, is_oom_qualifying');
     // The app remains usable while the accompanying Supabase upgrade is being
     // applied; the option becomes active as soon as the column is available.
-    if (error) return;
+    window.electricalOpenOomQualifyingAvailable = !error;
+    if (error) {
+      document.querySelectorAll('.fixture-qualification, .fixture-qualification-note').forEach(element => element.remove());
+      return;
+    }
     const qualifying = new Map((data || []).map(item => [item.id, item.is_oom_qualifying !== false]));
     state.fixtures.forEach(fixture => { fixture.is_oom_qualifying = qualifying.get(fixture.id) !== false; });
     render();
@@ -22,6 +26,7 @@
   };
 
   function wireCreateForm() {
+    if (window.electricalOpenOomQualifyingAvailable === false) return;
     const form = document.querySelector('#add-fixture-form');
     if (!form || form.dataset.oomExclusionReady) return;
     form.dataset.oomExclusionReady = 'true';
@@ -30,18 +35,24 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       const data = new FormData(form);
-      const { error } = await client.from('fixtures').insert({
+      const fixture = {
         name: data.get('name').trim(), competition_name: data.get('competition_name')?.trim() || null,
         fixture_date: data.get('fixture_date'), tee_time: data.get('tee_time'), format: data.get('format'),
-        status: 'draft', is_oom_qualifying: data.get('is_oom_qualifying') === 'on'
-      });
+        status: 'draft'
+      };
+      if (window.electricalOpenOomQualifyingAvailable) fixture.is_oom_qualifying = data.get('is_oom_qualifying') === 'on';
+      const { error } = await client.from('fixtures').insert(fixture);
       if (error) return message(error.message, true);
       await load();
       location.hash = '#admin/fixtures';
-      message(data.get('is_oom_qualifying') === 'on' ? 'Fixture created.' : 'Non-qualifying fixture created. It will not award OOM points or a fixture winner cut.');
+      message(!window.electricalOpenOomQualifyingAvailable || data.get('is_oom_qualifying') === 'on' ? 'Fixture created.' : 'Non-qualifying fixture created. It will not award OOM points or a fixture winner cut.');
     }, true);
   }
 
-  new MutationObserver(wireCreateForm).observe(app, { childList: true, subtree: true });
-  wireCreateForm();
+  const wire = () => {
+    if (window.electricalOpenOomQualifyingAvailable === false) document.querySelectorAll('.fixture-qualification, .fixture-qualification-note').forEach(element => element.remove());
+    wireCreateForm();
+  };
+  new MutationObserver(wire).observe(app, { childList: true, subtree: true });
+  wire();
 })();

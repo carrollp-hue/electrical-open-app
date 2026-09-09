@@ -37,7 +37,9 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       const data = new FormData(form);
-      const { error } = await client.from('fixtures').update({ name: data.get('name').trim(), competition_name: data.get('competition_name').trim() || null, fixture_date: data.get('fixture_date'), tee_time: data.get('tee_time'), is_oom_qualifying: data.get('is_oom_qualifying') === 'on' }).eq('id', data.get('fixture_id'));
+      const update = { name: data.get('name').trim(), competition_name: data.get('competition_name').trim() || null, fixture_date: data.get('fixture_date'), tee_time: data.get('tee_time') };
+      if (window.electricalOpenOomQualifyingAvailable) update.is_oom_qualifying = data.get('is_oom_qualifying') === 'on';
+      const { error } = await client.from('fixtures').update(update).eq('id', data.get('fixture_id'));
       if (error) return message(error.message, true);
       await load();
       location.hash = '#admin/fixtures';
