@@ -9,8 +9,11 @@
 }
 
 .club-handicap-reminder {
-  border: 1px solid var(--green);
-  background: rgba(104, 205, 148, .08);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
 }
 
-.club-handicap-reminder h2 { margin-top: 0; }
+.club-handicap-reminder h2 { margin: 0; }
+.club-handicap-editor { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
