@@ -6,7 +6,7 @@
     form.dataset.fixtureEditorReady = 'true';
     fixtureSelect.insertAdjacentHTML('afterend', '<label>Course name<input name="name" required></label>');
     form.insertAdjacentHTML('beforeend', '<label class="fixture-qualification"><input name="is_oom_qualifying" type="checkbox" checked> Qualifies for Order of Merit and fixture winner cut</label><p class="intro fixture-qualification-note">Clear this for a played fixture that should affect handicaps only.</p>');
-    const fill = () => {
+    const fill = async () => {
       const fixture = state.fixtures.find(item => item.id === fixtureSelect.value);
       if (!fixture) return;
       form.elements.name.value = fixture.name || '';
@@ -14,8 +14,17 @@
       form.elements.fixture_date.value = fixture.fixture_date || '';
       form.elements.tee_time.value = fixture.tee_time || '';
       form.elements.is_oom_qualifying.checked = fixture.is_oom_qualifying !== false;
+      // Read the selected fixture's stored flag as well. This keeps the
+      // checkbox correct when an admin switches between fixtures on this page.
+      if (window.electricalOpenOomQualifyingAvailable) {
+        const { data, error } = await client.from('fixtures').select('is_oom_qualifying').eq('id', fixture.id).maybeSingle();
+        if (!error && data && fixtureSelect.value === fixture.id) {
+          fixture.is_oom_qualifying = data.is_oom_qualifying !== false;
+          form.elements.is_oom_qualifying.checked = fixture.is_oom_qualifying;
+        }
+      }
     };
-    fixtureSelect.addEventListener('change', fill);
+    fixtureSelect.addEventListener('change', () => { void fill(); });
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
     deleteButton.className = 'secondary';
