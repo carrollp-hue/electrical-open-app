@@ -42,7 +42,7 @@
         await render(Number(data.get('season_year')));
       });
     };
-    panel.prepend(card);
+    panel.append(card);
     await render();
   }
 
