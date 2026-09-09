@@ -5,6 +5,7 @@
     if (!form || !fixtureSelect || form.dataset.fixtureEditorReady) return;
     form.dataset.fixtureEditorReady = 'true';
     fixtureSelect.insertAdjacentHTML('afterend', '<label>Course name<input name="name" required></label>');
+    form.insertAdjacentHTML('beforeend', '<label class="fixture-qualification"><input name="is_oom_qualifying" type="checkbox" checked> Qualifies for Order of Merit and fixture winner cut</label><p class="intro fixture-qualification-note">Clear this for a played fixture that should affect handicaps only.</p>');
     const fill = () => {
       const fixture = state.fixtures.find(item => item.id === fixtureSelect.value);
       if (!fixture) return;
@@ -12,6 +13,7 @@
       form.elements.competition_name.value = fixture.competition_name || '';
       form.elements.fixture_date.value = fixture.fixture_date || '';
       form.elements.tee_time.value = fixture.tee_time || '';
+      form.elements.is_oom_qualifying.checked = fixture.is_oom_qualifying !== false;
     };
     fixtureSelect.addEventListener('change', fill);
     const deleteButton = document.createElement('button');
@@ -35,7 +37,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       const data = new FormData(form);
-      const { error } = await client.from('fixtures').update({ name: data.get('name').trim(), competition_name: data.get('competition_name').trim() || null, fixture_date: data.get('fixture_date'), tee_time: data.get('tee_time') }).eq('id', data.get('fixture_id'));
+      const { error } = await client.from('fixtures').update({ name: data.get('name').trim(), competition_name: data.get('competition_name').trim() || null, fixture_date: data.get('fixture_date'), tee_time: data.get('tee_time'), is_oom_qualifying: data.get('is_oom_qualifying') === 'on' }).eq('id', data.get('fixture_id'));
       if (error) return message(error.message, true);
       await load();
       location.hash = '#admin/fixtures';
