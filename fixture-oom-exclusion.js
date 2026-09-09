@@ -20,9 +20,17 @@
     let markup = previousFixtures(fixtureId);
     const fixture = fixtureId && state.fixtures.find(item => item.id === fixtureId);
     if (fixture && fixture.is_oom_qualifying === false && !markup.includes('non-qualifying-fixture-note')) {
-      markup = markup.replace(/(<h1>[\s\S]*?<\/h1>)/, '$1<p class="intro non-qualifying-fixture-note"><strong>Non-qualifying fixture:</strong> scorecards and handicap differentials count, but no Order of Merit points or fixture winner cut are awarded.</p>');
+      markup = markup.replace(/(<h1>[\s\S]*?<\/h1>)/, '$1<p class="intro non-qualifying-fixture-note"><strong>(*) Non-qualifying fixture:</strong> scorecards and handicap differentials count, but no Order of Merit points or fixture winner cut are awarded.</p>');
     }
     return markup;
+  };
+
+  const previousFixtureRow = fixtureRow;
+  fixtureRow = function (fixture) {
+    const markup = previousFixtureRow(fixture);
+    if (fixture?.is_oom_qualifying !== false) return markup;
+    const name = esc(fixture.name);
+    return markup.replace(`>${name}</strong>`, `>${name} (*)</strong>`);
   };
 
   function wireCreateForm() {
