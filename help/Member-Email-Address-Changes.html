@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Member email address changes - Electrical Open</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b251a; color: #f2f7f3; }
+    body { max-width: 720px; margin: 0 auto; padding: 32px 20px 48px; line-height: 1.55; }
+    h1, h2 { color: #ffffff; line-height: 1.2; } h1 { font-size: 2rem; margin-bottom: .35rem; }
+    h2 { margin-top: 2rem; font-size: 1.25rem; } p, li { color: #d7e4db; }
+    ol { padding-left: 1.4rem; } li { margin: .6rem 0; }
+    .intro { color: #7addaa; font-size: 1.08rem; } .note { padding: 14px; border-left: 4px solid #67cf96; background: #153d2c; border-radius: 0 8px 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>Member email address changes</h1>
+  <p class="intro">Administrator procedure for changing the email address on an existing app account.</p>
+  <p>The member keeps the same player record, membership, handicap and score history.</p>
+
+  <h2>Change the email in Supabase</h2>
+  <ol>
+    <li>Sign in to the Electrical Open Golf Society project in Supabase.</li>
+    <li>Open <strong>Authentication</strong>, then <strong>Users</strong>.</li>
+    <li>Find the member by their current email address and open their user record.</li>
+    <li>Replace the email address with the new one and save the change.</li>
+    <li>Tell the member that Supabase may send a verification or security email. Once complete, they sign in with the new email address.</li>
+  </ol>
+
+  <h2>What stays the same</h2>
+  <p>The app links the player record to the account ID, not to the written email address. Changing the email on that existing account does not alter the player profile, current society index, club handicap, membership, fixture participation, scorecards, results or Order of Merit history.</p>
+
+  <h2>Important safeguards</h2>
+  <p class="note">Do not delete the user or create a second account just to change an email address. That would break the link between the login account and the member’s player record.</p>
+  <p>If the member has not yet been invited, send the invitation to the correct email address from Electrical Open instead. If an incorrect invite has already been issued but no password has been created, ask an app administrator to review it before taking action.</p>
+
+  <h2>Access needed</h2>
+  <p>This is an owner-level Supabase task. Keep at least two society-controlled Supabase project owners so an email change can still be made if one administrator loses access.</p>
+</body>
+</html>
