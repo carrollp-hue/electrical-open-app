@@ -29,7 +29,7 @@
     setMessage('');
     const isReset = mode === 'reset', isInvite = mode === 'invite', isCode = mode === 'code';
     title.textContent = isReset ? 'Reset password' : isInvite ? 'Set up invited account' : isCode ? 'Enter account code' : 'Choose a new password';
-    intro.textContent = isReset ? 'Enter your email and we will send an eight-digit reset code.' : isInvite ? 'Enter the email address used for your invitation.' : isCode ? `Enter the eight-digit code sent to ${resetEmail}.` : 'Choose a new password to continue to the society app.';
+    intro.textContent = isReset ? 'Enter your email and we will send an eight-digit reset code.' : isInvite ? 'Open the secure setup link in your invitation email. It will bring you back here to choose your password.' : isCode ? `Enter the eight-digit code sent to ${resetEmail}.` : 'Choose a new password to continue to the society app.';
     email.hidden = !(isReset || isInvite);
     code.parentElement.hidden = !isCode;
     password.parentElement.hidden = isReset || isCode;
@@ -42,7 +42,8 @@
     code.required = isCode;
     password.required = !isReset && !isCode;
     confirm.required = !isReset && !isCode;
-    submit.textContent = isReset ? 'Send reset code' : isInvite ? 'Continue' : isCode ? 'Verify code' : 'Save new password';
+    submit.hidden = isInvite;
+    submit.textContent = isReset ? 'Send reset code' : isCode ? 'Verify code' : 'Save new password';
     if (!dialog.open) dialog.showModal();
   };
   const addForgotPasswordLink = () => {
@@ -84,12 +85,6 @@
         if (error) throw error;
         show('code');
         setMessage('Enter the code from the email.');
-        return;
-      }
-      if (mode === 'invite') {
-        resetEmail = email.value.trim();
-        verificationType = 'invite';
-        show('code');
         return;
       }
       if (mode === 'code') {
