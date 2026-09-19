@@ -4,12 +4,14 @@
     if (!state.isAdmin || !panel || location.hash !== '#admin/members' || document.querySelector('#invite-member-form')) return;
     const availablePlayers = state.memberDirectory.filter(player => !player.profile_id && !player.is_guest).sort((a, b) => a.surname.localeCompare(b.surname) || a.first_name.localeCompare(b.first_name));
     const options = availablePlayers.map(player => `<option value="${player.id}">${esc(player.surname).toUpperCase()}, ${esc(player.first_name)}</option>`).join('');
-    panel.insertAdjacentHTML('afterbegin', `<div class="admin-card"><h2>Invite app member</h2><p>Highest-admin only. This creates and links a login account, then sends an eight-digit account-setup code. The member chooses their own password.</p><form class="admin-form" id="invite-member-form"><label>Player<select name="player_id" required><option value="">Select an unlinked player</option>${options}</select></label><label>Email address<input name="email" type="email" autocomplete="email" required></label><button class="primary" type="submit">Send account setup code</button></form><p class="admin-message" id="invite-member-message" role="status" aria-live="polite"></p></div>`);
+    const savedMessage = window.electricalOpenInviteMessage || { text: '', type: '' };
+    panel.insertAdjacentHTML('afterbegin', `<div class="admin-card"><h2>Invite app member</h2><p>Highest-admin only. This creates and links a login account, then sends an eight-digit account-setup code. The member chooses their own password.</p><form class="admin-form" id="invite-member-form"><label>Player<select name="player_id" required><option value="">Select an unlinked player</option>${options}</select></label><label>Email address<input name="email" type="email" autocomplete="email" required></label><button class="primary" type="submit">Send account setup code</button></form><p class="admin-message${savedMessage.type ? ` ${savedMessage.type}` : ''}" id="invite-member-message" role="${savedMessage.type === 'error' ? 'alert' : 'status'}" aria-live="polite">${esc(savedMessage.text)}</p></div>`);
     document.querySelector('#invite-member-form')?.addEventListener('submit', async event => {
       event.preventDefault();
       const form = event.currentTarget;
       const button = form.querySelector('button');
       const showMessage = (message, type = '') => {
+        window.electricalOpenInviteMessage = { text: message, type };
         // Refreshing an auth session can redraw the Admin view. Always find
         // the current message element rather than updating the old form.
         const output = document.querySelector('#invite-member-message');
