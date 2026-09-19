@@ -9,8 +9,11 @@
       event.preventDefault();
       const form = event.currentTarget;
       const button = form.querySelector('button');
-      const output = document.querySelector('#invite-member-message');
       const showMessage = (message, type = '') => {
+        // Refreshing an auth session can redraw the Admin view. Always find
+        // the current message element rather than updating the old form.
+        const output = document.querySelector('#invite-member-message');
+        if (!output) return;
         output.textContent = message;
         output.className = `admin-message${type ? ` ${type}` : ''}`;
         output.setAttribute('role', type === 'error' ? 'alert' : 'status');
