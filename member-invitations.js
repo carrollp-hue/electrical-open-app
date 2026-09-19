@@ -4,14 +4,19 @@
     if (!state.isAdmin || !panel || location.hash !== '#admin/members' || document.querySelector('#invite-member-form')) return;
     const availablePlayers = state.memberDirectory.filter(player => !player.profile_id && !player.is_guest).sort((a, b) => a.surname.localeCompare(b.surname) || a.first_name.localeCompare(b.first_name));
     const options = availablePlayers.map(player => `<option value="${player.id}">${esc(player.surname).toUpperCase()}, ${esc(player.first_name)}</option>`).join('');
-    panel.insertAdjacentHTML('afterbegin', `<div class="admin-card"><h2>Invite app member</h2><p>Highest-admin only. This creates and links a login account, then sends an eight-digit account-setup code. The member chooses their own password.</p><form class="admin-form" id="invite-member-form"><label>Player<select name="player_id" required><option value="">Select an unlinked player</option>${options}</select></label><label>Email address<input name="email" type="email" autocomplete="email" required></label><button class="primary" type="submit">Send account setup code</button></form><p class="admin-message" id="invite-member-message"></p></div>`);
+    panel.insertAdjacentHTML('afterbegin', `<div class="admin-card"><h2>Invite app member</h2><p>Highest-admin only. This creates and links a login account, then sends an eight-digit account-setup code. The member chooses their own password.</p><form class="admin-form" id="invite-member-form"><label>Player<select name="player_id" required><option value="">Select an unlinked player</option>${options}</select></label><label>Email address<input name="email" type="email" autocomplete="email" required></label><button class="primary" type="submit">Send account setup code</button></form><p class="admin-message" id="invite-member-message" role="status" aria-live="polite"></p></div>`);
     document.querySelector('#invite-member-form')?.addEventListener('submit', async event => {
       event.preventDefault();
       const form = event.currentTarget;
       const button = form.querySelector('button');
       const output = document.querySelector('#invite-member-message');
+      const showMessage = (message, type = '') => {
+        output.textContent = message;
+        output.className = `admin-message${type ? ` ${type}` : ''}`;
+        output.setAttribute('role', type === 'error' ? 'alert' : 'status');
+      };
       button.disabled = true;
-      output.textContent = 'Creating account…';
+      showMessage('Creating account…');
       const data = new FormData(form);
       const player = state.memberDirectory.find(item => item.id === data.get('player_id'));
       // Refresh the session immediately before calling the protected function.
@@ -20,8 +25,7 @@
       const { error: refreshError } = await client.auth.refreshSession();
       if (refreshError) {
         button.disabled = false;
-        output.textContent = 'Your session has expired. Please sign out and sign in again, then retry.';
-        output.style.color = '#b42318';
+        showMessage('Your session has expired. Please sign out and sign in again, then retry.', 'error');
         return;
       }
       const { error } = await client.functions.invoke('invite-member', { body: { player_id: data.get('player_id'), email: data.get('email')?.trim(), display_name: player ? `${player.first_name} ${player.surname}` : '' } });
@@ -33,14 +37,12 @@
           const body = response && typeof response.json === 'function' ? await response.clone().json() : null;
           detail = body?.error || body?.message || detail;
         } catch (_) { /* The response body is optional for network errors. */ }
-        output.textContent = detail === 'Failed to send a request to the Edge Function'
+        showMessage(detail === 'Failed to send a request to the Edge Function'
           ? 'Could not reach the invitation service. Please refresh the app and try again.'
-          : detail;
-        output.style.color = '#b42318';
+          : `Invitation failed: ${detail}`, 'error');
         return;
       }
-      output.style.color = '';
-      output.textContent = 'Invitation sent. The member must use “Set up invited account” on the sign-in screen and enter the eight-digit code.';
+      showMessage('Invitation sent. The member must use “Set up invited account” on the sign-in screen and enter the eight-digit code.', 'success');
       await load();
       location.hash = '#admin/members';
     });
