@@ -14,9 +14,31 @@
       output.textContent = 'Creating account…';
       const data = new FormData(form);
       const player = state.memberDirectory.find(item => item.id === data.get('player_id'));
+      // Refresh the session immediately before calling the protected function.
+      // Admin pages can remain open for a while, leaving an otherwise valid
+      // account with an expired bearer token for this one request.
+      const { error: refreshError } = await client.auth.refreshSession();
+      if (refreshError) {
+        button.disabled = false;
+        output.textContent = 'Your session has expired. Please sign out and sign in again, then retry.';
+        output.style.color = '#b42318';
+        return;
+      }
       const { error } = await client.functions.invoke('invite-member', { body: { player_id: data.get('player_id'), email: data.get('email')?.trim(), display_name: player ? `${player.first_name} ${player.surname}` : '' } });
       button.disabled = false;
-      if (error) { output.textContent = error.message; output.style.color = '#b42318'; return; }
+      if (error) {
+        let detail = error.message;
+        try {
+          const response = error.context;
+          const body = response && typeof response.json === 'function' ? await response.clone().json() : null;
+          detail = body?.error || body?.message || detail;
+        } catch (_) { /* The response body is optional for network errors. */ }
+        output.textContent = detail === 'Failed to send a request to the Edge Function'
+          ? 'Could not reach the invitation service. Please refresh the app and try again.'
+          : detail;
+        output.style.color = '#b42318';
+        return;
+      }
       output.style.color = '';
       output.textContent = 'Invitation sent. The member must use “Set up invited account” on the sign-in screen and enter the eight-digit code.';
       await load();
