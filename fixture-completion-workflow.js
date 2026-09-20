@@ -56,6 +56,32 @@
     target.innerHTML = `<h4>${esc(displayName(person))} – submitted scorecard</h4><p class="intro">${own ? 'Player-submitted card' : 'Marker-submitted card'} · Playing handicap ${playing ?? '—'}</p><div class="table-responsive"><table class="table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th><th>Gross</th></tr></thead><tbody>${holesForCard.map((hole, index) => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td><td><strong>${Number(scores[index])}</strong></td></tr>`).join('')}<tr><td><strong>Total</strong></td><td></td><td></td><td><strong>${totals?.gross ?? '—'}</strong></td></tr></tbody></table></div><p class="intro">Check this against the player’s card, then use “Enter or modify scorecard” above to create the official record.</p>`;
   };
 
+  const promoteSubmittedScorecard = async (fixtureId, playerId) => {
+    const fixture = state.fixtures.find(item => item.id === fixtureId), course = setup(fixture?.course_setup_id);
+    const person = participantFor(fixtureId, playerId)?.players;
+    if (!fixture || !course) return message('This fixture needs a complete course scorecard before a submitted card can be promoted.', true);
+    const { data, error } = await client.rpc('fixture_paired_scorecards_for_results', { p_fixture_id: fixtureId });
+    if (error) return message('Unable to load the submitted scorecard.', true);
+    const cards = data || [];
+    const own = cards.find(card => card.scorer_player_id === playerId && card.own_status === 'submitted');
+    const marker = cards.find(card => card.marked_player_id === playerId && card.marked_status === 'submitted');
+    const scores = own ? own.own_scores : marker?.marked_scores;
+    if (!Array.isArray(scores) || scores.length !== 18) return message('No complete submitted scorecard is available to promote.', true);
+    if (!window.confirm(`Promote ${displayName(person)}’s submitted card to the official scorecard? Check that it is correct before continuing.`)) return;
+    const form = document.querySelector('#scorecard-form'), fixtureSelect = document.querySelector('#scorecard-fixture'), playerSelect = document.querySelector('#scorecard-player');
+    if (!form || !fixtureSelect || !playerSelect) return message('The official scorecard form is not available.', true);
+    fixtureSelect.value = fixtureId;
+    fixtureSelect.dispatchEvent(new Event('change'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    playerSelect.value = playerId;
+    playerSelect.dispatchEvent(new Event('change'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const fields = document.querySelector('#scorecard-fields');
+    if (!fields || ![...fields.querySelectorAll('input[name^="gross_"]')].length) return message('The official scorecard fields could not be prepared.', true);
+    scores.forEach((score, index) => { const input = fields.querySelector(`[name="gross_${index + 1}"]`); if (input) { input.value = Number(score); input.dispatchEvent(new Event('input')); } });
+    await saveScorecard({ preventDefault() {}, currentTarget: form });
+  };
+
   const hydrateLiveResults = async fixtureId => {
     const fixture = state.fixtures.find(item => item.id === fixtureId), course = setup(fixture?.course_setup_id);
     const table = document.querySelector('#app .table');
@@ -112,7 +138,7 @@
     const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixtureId).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
     const statuses = people.map(item => { const entry = entries.get(item.player_id), complete = entry?.score_status === 'completed' && counts.get(entry.id) === 18, nr = entry?.score_status === 'non_return', verification = provisionalCandidates(pairedCards, item.player_id); return { item, complete, nr, verification, status: complete ? 'Manual' : nr ? 'NR' : verification?.conflict ? 'Unverified' : verification?.verified ? 'Verified' : verification ? 'Submitted' : 'Enter score' }; });
     const readyToCommit = statuses.every(item => ['Manual', 'NR', 'Verified'].includes(item.status));
-    list.innerHTML = `<h3>Scorecard checklist</h3>${statuses.map(({ item, complete, nr, verification, status }) => { const rowClass = verification?.conflict ? ' finish-unverified' : ''; const name = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`; const actions = complete ? `<button class="secondary" type="button" data-finish-score="${item.player_id}">Modify scorecard</button>` : verification ? `<button class="secondary" type="button" data-view-submitted="${item.player_id}">View submitted card</button>` : nr ? '' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Input scorecard</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`; return `<div class="finish-check-row${rowClass}"><span class="finish-player-status">${name} <b>–</b> ${status}</span>${actions}</div>`; }).join('')}<div id="submitted-scorecard-preview"></div><p class="finish-commit-note">${readyToCommit ? 'All scorecards meet the acceptance criteria.' : 'Finalize & commit is available once every player is Verified, Manual or NR.'}</p>`;
+    list.innerHTML = `<h3>Scorecard checklist</h3>${statuses.map(({ item, complete, nr, verification, status }) => { const rowClass = verification?.conflict ? ' finish-unverified' : ''; const name = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`; const actions = complete ? `<button class="secondary" type="button" data-finish-score="${item.player_id}">Modify scorecard</button>` : verification ? `<span class="finish-actions"><button class="secondary" type="button" data-view-submitted="${item.player_id}">View submitted card</button>${verification.verified ? '' : `<button class="secondary" type="button" data-promote-submitted="${item.player_id}">Promote to official</button>`}</span>` : nr ? '' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Input scorecard</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`; return `<div class="finish-check-row${rowClass}"><span class="finish-player-status">${name} <b>–</b> ${status}</span>${actions}</div>`; }).join('')}<div id="submitted-scorecard-preview"></div><p class="finish-commit-note">${readyToCommit ? 'All scorecards meet the acceptance criteria.' : 'Finalize & commit is available once every player is Verified, Manual or NR.'}</p>`;
     const commitButton = document.querySelector('#commit-fixture-form button[type="submit"]');
     if (commitButton) commitButton.disabled = !readyToCommit;
   };
@@ -155,9 +181,10 @@
       showFinishChecklist(fixtureId);
     });
     card.addEventListener('click', event => {
-      const score = event.target.closest('[data-finish-score]'), nr = event.target.closest('[data-finish-nr]'), view = event.target.closest('[data-view-submitted]'), fixtureId = select?.value;
-      if (!fixtureId || (!score && !nr && !view)) return;
+      const score = event.target.closest('[data-finish-score]'), nr = event.target.closest('[data-finish-nr]'), view = event.target.closest('[data-view-submitted]'), promote = event.target.closest('[data-promote-submitted]'), fixtureId = select?.value;
+      if (!fixtureId || (!score && !nr && !view && !promote)) return;
       if (view) return void showSubmittedScorecard(fixtureId, view.dataset.viewSubmitted);
+      if (promote) return void promoteSubmittedScorecard(fixtureId, promote.dataset.promoteSubmitted);
       if (nr) {
         const playerId = nr.dataset.finishNr, participant = participantFor(fixtureId, playerId), index = participant?.handicap_index_override ?? snapshot(playerId)?.index_value;
         if (!window.confirm(`Record a Non Return for ${displayName(participant?.players)}?`)) return;
