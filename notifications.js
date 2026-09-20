@@ -2,10 +2,15 @@
   const config = window.ELECTRICAL_OPEN_CONFIG;
   const button = document.querySelector('#notification-button');
   const indicator = document.querySelector('#notification-indicator');
+  const help = document.querySelector('#notification-help');
   if (!button || !indicator) return;
 
   const client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
   const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const needsHomeScreenApp = isAppleMobile && !installed;
+  const canEnable = supported && !needsHomeScreenApp;
   // Opening the app is treated as acknowledging the notification badge.
   if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
   const toUint8 = value => {
@@ -14,6 +19,11 @@
     return Uint8Array.from(binary, char => char.charCodeAt(0));
   };
   const setStatus = text => { button.textContent = text; };
+  const showHelp = text => {
+    if (!help) return;
+    help.hidden = !text;
+    help.textContent = text || '';
+  };
   const currentSubscription = async () => {
     const registration = await navigator.serviceWorker.getRegistration();
     return registration?.pushManager.getSubscription() || null;
@@ -24,11 +34,15 @@
     indicator.setAttribute('aria-label', active ? 'Fixture notifications enabled' : 'Fixture notifications disabled');
   };
   const refreshNotificationState = async () => {
-    if (!supported) {
+    if (!canEnable) {
       button.hidden = true;
       indicator.hidden = true;
+      showHelp(needsHomeScreenApp
+        ? 'To enable notifications on iPhone, tap Share in Safari, choose Add to Home Screen, then open Electrical Open from its new Home Screen icon.'
+        : 'Notifications are not supported in this browser. Open Electrical Open in a current phone browser or installed app.');
       return null;
     }
+    showHelp('');
     const subscription = await currentSubscription();
     const { data: { user } } = await client.auth.getUser();
     if (!user) {
@@ -42,9 +56,12 @@
     return { subscription, active };
   };
 
-  if (!supported) {
+  if (!canEnable) {
     button.hidden = true;
     indicator.hidden = true;
+    showHelp(needsHomeScreenApp
+      ? 'To enable notifications on iPhone, tap Share in Safari, choose Add to Home Screen, then open Electrical Open from its new Home Screen icon.'
+      : 'Notifications are not supported in this browser. Open Electrical Open in a current phone browser or installed app.');
     return;
   }
   refreshNotificationState();
