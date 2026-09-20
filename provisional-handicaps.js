@@ -71,7 +71,7 @@
     if (remove.error) return message(remove.error.message, true);
     const saved = await client.from('hole_scores').insert(scores.map(item => ({
       fixture_entry_id: entry.id, hole_number: item.hole.hole_number, gross_score: item.gross,
-      handicap_strokes: 0, nett_score: item.gross, stableford_points: null
+      handicap_strokes: 0, nett_score: item.gross, stableford_points: 0
     })));
     if (saved.error) return message(saved.error.message, true);
     await load();
