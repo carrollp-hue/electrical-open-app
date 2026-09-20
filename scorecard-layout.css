@@ -114,3 +114,6 @@
 .submitted-scorecard-subtotal td { border-top: 6px solid var(--wash, rgba(0,0,0,.08)); }
 .submitted-scorecard-total td { border-top: 8px solid var(--wash, rgba(0,0,0,.08)); }
 @media (max-width: 360px) { .submitted-scorecard-table { font-size: .84rem; } .submitted-scorecard-table th, .submitted-scorecard-table td { padding: 8px 2px; } }
+
+/* Mirrors the Out/In break on the review card within the staff entry grid. */
+.scorecard-grid > .scorecard-subtotal { color: var(--green); font-weight: 800; border-top: 6px solid var(--wash, rgba(0,0,0,.08)); }
