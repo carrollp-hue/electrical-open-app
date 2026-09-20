@@ -10,6 +10,8 @@
 
     const existing = appRoot.querySelector('details.countback-card');
     if (existing) {
+      if (existing.dataset.precommitLabelled === 'true') return;
+      existing.dataset.precommitLabelled = 'true';
       const summary = existing.querySelector('summary strong');
       const note = existing.querySelector('.intro');
       if (summary) summary.textContent = 'Provisional countback — before commitment';
