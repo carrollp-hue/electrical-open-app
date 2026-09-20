@@ -7,7 +7,7 @@
   const baseParticipantAdmin = participantAdmin;
   participantAdmin = function () {
     const page = baseParticipantAdmin();
-    const fixtureId = window.electricalOpenParticipantFixture;
+    const fixtureId = window.electricalOpenParticipantFixture || state.fixtures.find(item => !['published', 'archived'].includes(item.status))?.id || state.fixtures[0]?.id;
     const fixture = state.fixtures.find(item => item.id === fixtureId);
     if (!fixture) return page;
     const card = `<div class="admin-card provisional-player-card"><h2>Add player without a handicap</h2><p>Use this for a new society player. Their first three verified 18-hole cards are assessment cards: each hole is capped at par + 2 and they do not compete for prizes or Order of Merit points. A society index is issued after the third card; fixture playing handicap remains capped at 28.</p><form class="admin-form" id="add-provisional-player-form"><input type="hidden" name="fixture_id" value="${fixture.id}"><div class="field-row"><label>First name<input name="first_name" required></label><label>Surname<input name="surname" required></label></div><button class="primary" type="submit">Add provisional player</button></form></div>`;
