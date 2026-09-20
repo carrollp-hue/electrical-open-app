@@ -101,3 +101,13 @@
 .scorecard-out-repeat td { border-top: 1px solid var(--line, #28513f); }
 .paired-scorecard-table .scorecard-out-repeat td { border-top: 1px solid var(--line, #28513f); }
 @media (max-width: 520px) { .finish-check-row { align-items: flex-start; flex-direction: column; } .finish-ok { text-align: left; } }
+
+/* Keep the two reviewing columns together rather than stretching them to the
+   edges of a wide phone or tablet screen. */
+.submitted-scorecard-table { width: min(100%, 360px); margin: 0 auto; table-layout: fixed; }
+.submitted-scorecard-table th, .submitted-scorecard-table td { padding: 9px 4px; text-align: center; }
+.submitted-scorecard-table th:nth-child(1), .submitted-scorecard-table td:nth-child(1) { width: 16%; text-align: left; }
+.submitted-scorecard-table th:nth-child(2), .submitted-scorecard-table td:nth-child(2), .submitted-scorecard-table th:nth-child(3), .submitted-scorecard-table td:nth-child(3) { width: 16%; }
+.submitted-scorecard-table th:nth-child(4), .submitted-scorecard-table td:nth-child(4), .submitted-scorecard-table th:nth-child(5), .submitted-scorecard-table td:nth-child(5) { width: 26%; }
+.submitted-scorecard-table th:nth-child(4), .submitted-scorecard-table td:nth-child(4) { border-left: 1px solid var(--line, #28513f); }
+@media (max-width: 360px) { .submitted-scorecard-table { font-size: .84rem; } .submitted-scorecard-table th, .submitted-scorecard-table td { padding: 8px 2px; } }
