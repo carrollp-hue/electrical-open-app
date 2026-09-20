@@ -213,7 +213,7 @@ function handicap(roundId) {
 const loadWithCountbackData = load;
 load = async function() {
   await loadWithCountbackData();
-  const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, stableford_points');
+  const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, gross_score, stableford_points');
   if (error) throw error;
   state.holeScores = data || [];
   render();
