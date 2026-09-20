@@ -56,12 +56,11 @@
   const checkForcedChange = async () => {
     const { data: { user } } = await client.auth.getUser();
     if (!user) return;
-    if (isRecoveryLink()) return show('change', true);
     const { data: profile } = await client.from('profiles').select('password_change_required').eq('id', user.id).maybeSingle();
-    if (profile?.password_change_required) {
-      requiresProfileClear = true;
-      show('change', true);
-    }
+    // Invitation links also arrive with a recovery-style URL. Keep the flag
+    // so saving the first password clears it instead of reopening this dialog.
+    requiresProfileClear = Boolean(profile?.password_change_required);
+    if (isRecoveryLink() || requiresProfileClear) show('change', true);
   };
   window.electricalOpenPasswordRecovery = () => {
     sessionStorage.removeItem('electricalOpenPasswordRecovery');
