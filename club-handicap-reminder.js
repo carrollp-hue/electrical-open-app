@@ -53,16 +53,20 @@ const electricalOpenRenderWithClubReminder = render;
 render = function () {
   electricalOpenRenderWithClubReminder();
   document.querySelector('#club-handicap-self-form')?.addEventListener('submit', submitOwnClubHandicap);
-  document.querySelector('#club-handicap-toggle')?.addEventListener('click', () => {
-    const form = document.querySelector('#club-handicap-self-form');
-    const button = document.querySelector('#club-handicap-toggle');
-    if (!form || !button) return;
-    form.hidden = !form.hidden;
-    button.textContent = form.hidden ? 'Open' : 'Close';
-    button.setAttribute('aria-expanded', String(!form.hidden));
-    if (!form.hidden) form.querySelector('input')?.focus();
-  });
 };
+
+// The handicap page can be redrawn by profile, notification and data updates.
+// Delegate the toggle so it remains available on the newly rendered button.
+document.addEventListener('click', event => {
+  const button = event.target.closest('#club-handicap-toggle');
+  if (!button) return;
+  const form = document.querySelector('#club-handicap-self-form');
+  if (!form) return;
+  form.hidden = !form.hidden;
+  button.textContent = form.hidden ? 'Open' : 'Close';
+  button.setAttribute('aria-expanded', String(!form.hidden));
+  if (!form.hidden) form.querySelector('input')?.focus();
+});
 
 async function submitOwnClubHandicap(event) {
   event.preventDefault();
