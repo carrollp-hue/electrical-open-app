@@ -213,7 +213,7 @@ function handicap(roundId) {
 const loadWithCountbackData = load;
 load = async function() {
   await loadWithCountbackData();
-  const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, gross_score, stableford_points');
+  const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, gross_score, handicap_strokes, stableford_points');
   if (error) throw error;
   state.holeScores = data || [];
   render();
@@ -221,11 +221,22 @@ load = async function() {
 
 function fixtureCountback(entryId) {
   const scores = (state.holeScores || []).filter(item => item.fixture_entry_id === entryId);
+  const entry = state.entries.find(item => item.id === entryId);
+  const fixture = state.fixtures.find(item => item.id === entry?.fixture_id);
+  const course = setup(fixture?.course_setup_id);
+  const points = score => {
+    if (score.stableford_points != null) return Number(score.stableford_points);
+    const hole = holes(course?.id).find(item => item.hole_number === score.hole_number);
+    return hole && score.gross_score != null && score.handicap_strokes != null
+      ? Math.max(0, 2 + Number(hole.par) - (Number(score.gross_score) - Number(score.handicap_strokes)))
+      : null;
+  };
   const total = (from, to) => {
     const values = scores.filter(item => item.hole_number >= from && item.hole_number <= to);
-    return values.length ? values.reduce((sum, item) => sum + Number(item.stableford_points || 0), 0) : null;
+    const valuesWithPoints = values.map(points);
+    return valuesWithPoints.length && valuesWithPoints.every(value => value != null) ? valuesWithPoints.reduce((sum, value) => sum + value, 0) : null;
   };
-  const single = hole => scores.find(item => item.hole_number === hole)?.stableford_points ?? null;
+  const single = hole => points(scores.find(item => item.hole_number === hole) || {});
   return [total(10, 18), total(13, 18), total(16, 18), single(18), total(1, 9), total(4, 9), total(7, 9), single(9)];
 }
 
