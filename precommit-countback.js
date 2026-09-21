@@ -77,6 +77,22 @@
     requestAnimationFrame(() => scored.forEach((item, index) => {
       if (item.row.isConnected && item.row.children[0]) item.row.children[0].textContent = String(index + 1);
     }));
+    // Some fixture enhancements redraw immediately after this module. Apply
+    // the visible provisional top five once that redraw has completed.
+    setTimeout(() => {
+      const liveCard = document.querySelector('.countback-card');
+      const liveTable = document.querySelector('#app .section:not(.countback-card) .table');
+      if (!liveCard || !liveTable) return;
+      const order = Array.from(liveCard.querySelectorAll('tbody tr')).map(row => String(row.children[1]?.textContent || '').trim());
+      const liveBody = liveTable.querySelector('tbody');
+      const liveRows = Array.from(liveBody.rows);
+      const orderedRows = order.map(name => liveRows.find(row => String(row.children[1]?.textContent || '').trim() === name)).filter(Boolean);
+      const firstOther = liveRows.find(row => !orderedRows.includes(row));
+      orderedRows.forEach((row, index) => {
+        if (row.children[0]) row.children[0].textContent = String(index + 1);
+        liveBody.insertBefore(row, firstOther || null);
+      });
+    }, 100);
   };
 
   const enrichCountback = async (fixtureId, card) => {
