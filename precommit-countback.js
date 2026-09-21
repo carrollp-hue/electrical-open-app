@@ -57,7 +57,7 @@
     }
     if (pendingFixtures.has(fixtureId)) return;
     pendingFixtures.add(fixtureId);
-    const { data, error } = await client.rpc('fixture_provisional_countbacks', { p_fixture_id: fixtureId });
+    const { data, error } = await client.rpc('fixture_provisional_countbacks_v2', { p_fixture_id: fixtureId });
     if (error) {
       pendingFixtures.delete(fixtureId);
       return;
