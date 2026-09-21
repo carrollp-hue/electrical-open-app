@@ -1,6 +1,33 @@
 // Make countback evidence visible on an unfinished fixture, even with fewer
 // than five scored players. It remains provisional until the fixture is finalised.
 (() => {
+  const enrichedFixtures = new Set();
+
+  const enrichCountback = async (fixtureId, card) => {
+    if (enrichedFixtures.has(fixtureId)) return;
+    enrichedFixtures.add(fixtureId);
+    const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, stableford_points');
+    if (error) {
+      enrichedFixtures.delete(fixtureId);
+      return;
+    }
+    state.holeScores = data || [];
+    const entriesByName = new Map(state.entries
+      .filter(entry => entry.fixture_id === fixtureId)
+      .map(entry => [String(entry.player_name || '').trim(), entry]));
+    const isStandalone = card.classList.contains('precommit-countback-card');
+    card.querySelectorAll('tbody tr').forEach(row => {
+      const cells = Array.from(row.children);
+      const playerCell = cells[isStandalone ? 0 : 1];
+      const entry = entriesByName.get(String(playerCell?.textContent || '').trim());
+      if (!entry) return;
+      fixtureCountback(entry.id).forEach((value, index) => {
+        const cell = cells[(isStandalone ? 2 : 3) + index];
+        if (cell) cell.textContent = value == null ? '—' : String(value);
+      });
+    });
+  };
+
   const render = () => {
     const appRoot = document.querySelector('#app');
     const match = location.hash.match(/^#fixtures\/([^/]+)$/);
@@ -16,6 +43,7 @@
       const note = existing.querySelector('.intro');
       if (summary) summary.textContent = 'Provisional countback — before commitment';
       if (note) note.textContent = 'These figures are based on entered official scorecards. Check tied totals from left to right before finalising the fixture.';
+      enrichCountback(fixture.id, existing);
       return;
     }
 
@@ -29,6 +57,7 @@
       return `<tr><td>${esc(entry.player_name)}</td><td>${entry.stableford_points}</td>${values.map(value => `<td>${value}</td>`).join('')}</tr>`;
     }).join('');
     appRoot.insertAdjacentHTML('beforeend', `<details class="section countback-card precommit-countback-card"><summary><strong>Provisional countback — before commitment</strong></summary><p class="intro">These figures are based on entered official scorecards. Check tied totals from left to right before finalising the fixture.</p><div class="table-responsive"><table class="table"><thead><tr><th>Player</th><th>Pts</th><th>10–18</th><th>13–18</th><th>16–18</th><th>18</th><th>1–9</th><th>4–9</th><th>7–9</th><th>9</th></tr></thead><tbody>${rows}</tbody></table></div></details>`);
+    enrichCountback(fixture.id, appRoot.querySelector('.precommit-countback-card'));
   };
 
   new MutationObserver(render).observe(document.querySelector('#app'), { childList: true, subtree: true });
