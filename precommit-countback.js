@@ -1,6 +1,25 @@
 // Make countback evidence visible on an unfinished fixture, even with fewer
 // than five scored players. It remains provisional until the fixture is finalised.
 (() => {
+  const applyProvisionalPositions = () => {
+    const card = document.querySelector('.countback-card');
+    const table = document.querySelector('#app .section:not(.countback-card) .table');
+    if (!card || !table) return;
+    const rankedNames = Array.from(card.querySelectorAll('tbody tr')).map(row => String(row.children[1]?.textContent || '').trim()).filter(Boolean);
+    if (!rankedNames.length) return;
+    const body = table.querySelector('tbody');
+    const rowsByName = new Map(Array.from(body.rows).map(row => [String(row.children[1]?.textContent || '').trim(), row]));
+    const rankedRows = rankedNames.map(name => rowsByName.get(name)).filter(Boolean);
+    if (!rankedRows.length) return;
+    const firstOther = Array.from(body.rows).find(row => !rankedRows.includes(row));
+    rankedRows.forEach((row, index) => {
+      if (row.children[0]) row.children[0].textContent = `*${index + 1}`;
+      body.insertBefore(row, firstOther || null);
+    });
+    const heading = table.querySelector('thead th:first-child');
+    if (heading) heading.textContent = 'PROV.';
+  };
+  setInterval(applyProvisionalPositions, 300);
   const countbackScores = new Map();
   const pendingFixtures = new Set();
 
