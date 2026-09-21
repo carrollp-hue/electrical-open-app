@@ -26,8 +26,6 @@
 
     // The official positions remain unset until commitment, but place the
     // on-screen fixture list in the same provisional order for checking.
-    const resultsTable = document.querySelector('#app .section:not(.countback-card) .table');
-    if (!resultsTable) return;
     const countbackByName = new Map(Array.from(card.querySelectorAll('tbody tr')).map(row => {
       const cells = Array.from(row.children);
       const offset = isStandalone ? 0 : 1;
@@ -36,6 +34,22 @@
         values: cells.slice(offset + 2).map(cell => Number(cell.textContent))
       }];
     }));
+    const rankedCountback = [...countbackByName.entries()].sort((first, second) => {
+      const points = second[1].points - first[1].points;
+      if (points) return points;
+      for (let index = 0; index < first[1].values.length; index += 1) {
+        const difference = second[1].values[index] - first[1].values[index];
+        if (difference) return difference;
+      }
+      return first[0].localeCompare(second[0]);
+    });
+    rankedCountback.forEach(([name], index) => {
+      const row = Array.from(card.querySelectorAll('tbody tr')).find(item => String(item.children[isStandalone ? 0 : 1]?.textContent || '').trim() === name);
+      if (row?.children[0]) row.children[0].textContent = String(index + 1);
+    });
+
+    const resultsTable = document.querySelector('#app .section:not(.countback-card) .table');
+    if (!resultsTable) return;
     const rows = Array.from(resultsTable.querySelectorAll('tbody tr')).map(row => {
       const countback = countbackByName.get(String(row.children[1]?.textContent || '').trim());
       return countback ? { row, ...countback } : null;
@@ -60,6 +74,9 @@
     unscored.forEach(item => body.append(item.row));
     const positionHeading = resultsTable.querySelector('thead th:first-child');
     if (positionHeading) positionHeading.textContent = 'PROV.';
+    requestAnimationFrame(() => scored.forEach((item, index) => {
+      if (item.row.isConnected && item.row.children[0]) item.row.children[0].textContent = String(index + 1);
+    }));
   };
 
   const enrichCountback = async (fixtureId, card) => {
