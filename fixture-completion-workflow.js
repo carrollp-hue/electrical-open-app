@@ -103,23 +103,55 @@
       const totals = provisional && scoreTotals(provisional.scores, provisional.playing ?? playingFor(fixture, course, item.player_id), course);
       return { ...item, entry, provisional, totals };
     });
+    const countbacks = new Map((state.provisionalCountbacks?.[fixtureId] || []).map(score => [score.fixture_entry_id, score]));
+    const countbackKeys = ['back_nine', 'last_six', 'last_three', 'hole_eighteen', 'front_nine', 'front_six', 'front_three', 'hole_nine'];
+    const compareCountback = (first, second) => {
+      const points = Number(second?.stableford_points ?? -1) - Number(first?.stableford_points ?? -1);
+      if (points) return points;
+      for (const key of countbackKeys) {
+        const difference = Number(second?.[key] ?? -1) - Number(first?.[key] ?? -1);
+        if (difference) return difference;
+      }
+      return 0;
+    };
     // Official rows are ranked for display by their awarded Order of Merit
     // points, then by Stableford points. Provisional rows have no OOM award,
     // so remain beneath official results and are ordered by their points.
     people.sort((a, b) => {
+      const provisionalDifference = compareCountback(countbacks.get(a.entry?.id), countbacks.get(b.entry?.id));
+      if (provisionalDifference) return provisionalDifference;
       const aOOM = a.entry ? Number(a.entry.order_of_merit_points ?? 0) : -1;
       const bOOM = b.entry ? Number(b.entry.order_of_merit_points ?? 0) : -1;
       const aPoints = Number(a.entry?.stableford_points ?? a.totals?.points ?? -1);
       const bPoints = Number(b.entry?.stableford_points ?? b.totals?.points ?? -1);
       return bOOM - aOOM || bPoints - aPoints || Number(a.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) - Number(b.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
     });
+    const provisionalRanks = new Map();
+    if (countbacks.size) {
+      let position = 0;
+      let previous = null;
+      let previousEntryId = null;
+      people.forEach((item, index) => {
+        const summary = countbacks.get(item.entry?.id);
+        if (!summary) return;
+        if (!previous || compareCountback(previous, summary) !== 0) {
+          position = index + 1;
+          provisionalRanks.set(item.entry.id, `*${position}`);
+        } else {
+          provisionalRanks.set(previousEntryId, `*=${position}`);
+          provisionalRanks.set(item.entry.id, `*=${position}`);
+        }
+        previous = summary;
+        previousEntryId = item.entry.id;
+      });
+    }
     const header = table.querySelector('thead');
     if (!header || header.textContent.replace(/\s+/g, ' ').trim().indexOf('OOM') < 0) return;
     const rows = people.map(item => {
       const index = item.handicap_index_override ?? snapshot(item.player_id)?.index_value;
       const official = item.entry;
       const provisional = item.provisional, totals = item.totals;
-      const result = official ? { gross: official.gross_score, nett: official.nett_score, points: official.stableford_points, position: official.competition_position, oom: fixture.status === 'completed' ? official.order_of_merit_points : '—' } : totals ? { gross: totals.gross, nett: totals.nett, points: totals.points, position: '—', oom: '—' } : { gross: '—', nett: '—', points: '—', position: '—', oom: '—' };
+      const result = official ? { gross: official.gross_score, nett: official.nett_score, points: official.stableford_points, position: official.competition_position ?? provisionalRanks.get(official.id) ?? '—', oom: fixture.status === 'completed' ? official.order_of_merit_points : '—' } : totals ? { gross: totals.gross, nett: totals.nett, points: totals.points, position: '—', oom: '—' } : { gross: '—', nett: '—', points: '—', oom: '—' };
       const rowClass = provisional?.conflict ? 'provisional-result provisional-conflict' : provisional && !provisional.verified ? 'provisional-result' : '';
       const flag = provisional?.conflict ? ' <span class="result-warning" title="Submitted scores differ">!</span>' : '';
       const playerName = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`;
@@ -129,6 +161,7 @@
       return `<tr class="${rowClass}"><td>${result.position ?? '—'}</td><td>${playerCell}${flag}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${index == null ? '—' : playingFor(fixture, course, item.player_id)}</td><td>${result.gross == null ? 'NR' : result.gross}</td><td>${result.nett ?? '—'}</td><td>${result.points ?? '—'}</td><td>${result.oom}</td></tr>`;
     }).join('');
     table.querySelector('tbody').innerHTML = rows;
+    if (countbacks.size) table.querySelector('thead th:first-child').textContent = 'PROV.';
     if (!document.querySelector('#live-results-note')) table.insertAdjacentHTML('afterend', '<p class="intro" id="live-results-note">Submitted member scores are provisional until verified. A red ! means the submitted cards differ. Order of Merit points are awarded only when the fixture is committed.</p>');
   };
 

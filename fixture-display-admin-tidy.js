@@ -79,6 +79,10 @@
     const fixtureId = (location.hash.match(/^#fixtures\/([^/]+)/) || [])[1];
     const fixture = fixtureId && state.fixtures.find(item => item.id === fixtureId);
     if (!fixture || ['draft', 'scheduled'].includes(fixture.status)) return;
+    // An unfinished fixture with an aggregate countback has already been
+    // ranked by the fixture renderer. Do not replace that order with the
+    // final Order-of-Merit fallback while the results are still provisional.
+    if ((state.provisionalCountbacks?.[fixtureId] || []).length) return;
     const body = app.querySelector('.table tbody');
     if (!body || body.dataset.oomSorted === fixtureId) return;
     const rows = [...body.querySelectorAll(':scope > tr')];
