@@ -28,22 +28,30 @@
     // on-screen fixture list in the same provisional order for checking.
     const resultsTable = document.querySelector('#app .section:not(.countback-card) .table');
     if (!resultsTable) return;
+    const countbackByName = new Map(Array.from(card.querySelectorAll('tbody tr')).map(row => {
+      const cells = Array.from(row.children);
+      const offset = isStandalone ? 0 : 1;
+      return [String(cells[offset]?.textContent || '').trim(), {
+        points: Number(cells[offset + 1]?.textContent),
+        values: cells.slice(offset + 2).map(cell => Number(cell.textContent))
+      }];
+    }));
     const rows = Array.from(resultsTable.querySelectorAll('tbody tr')).map(row => {
-      const entry = entriesByName.get(String(row.children[1]?.textContent || '').trim());
-      return entry ? { row, entry, values: valuesFor(entry.id) } : null;
+      const countback = countbackByName.get(String(row.children[1]?.textContent || '').trim());
+      return countback ? { row, ...countback } : null;
     }).filter(Boolean);
     if (!rows.length) return;
     const compare = (first, second) => {
-      const points = Number(second.entry.stableford_points) - Number(first.entry.stableford_points);
+      const points = second.points - first.points;
       if (points) return points;
       for (let index = 0; index < first.values.length; index += 1) {
         const difference = Number(second.values[index] ?? -1) - Number(first.values[index] ?? -1);
         if (difference) return difference;
       }
-      return String(first.entry.player_name).localeCompare(String(second.entry.player_name));
+      return String(first.row.children[1]?.textContent).localeCompare(String(second.row.children[1]?.textContent));
     };
-    const scored = rows.filter(item => item.entry.stableford_points != null).sort(compare);
-    const unscored = rows.filter(item => item.entry.stableford_points == null);
+    const scored = rows.filter(item => Number.isFinite(item.points)).sort(compare);
+    const unscored = rows.filter(item => !Number.isFinite(item.points));
     const body = resultsTable.querySelector('tbody');
     scored.forEach((item, index) => {
       if (item.row.children[0]) item.row.children[0].textContent = String(index + 1);
