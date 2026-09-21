@@ -1,31 +1,52 @@
 // Make countback evidence visible on an unfinished fixture, even with fewer
 // than five scored players. It remains provisional until the fixture is finalised.
 (() => {
-  const enrichedFixtures = new Set();
+  const countbackScores = new Map();
+  const pendingFixtures = new Set();
 
-  const enrichCountback = async (fixtureId, card) => {
-    if (enrichedFixtures.has(fixtureId)) return;
-    enrichedFixtures.add(fixtureId);
-    const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, stableford_points');
-    if (error) {
-      enrichedFixtures.delete(fixtureId);
-      return;
-    }
-    state.holeScores = data || [];
+  const fillCountback = (fixtureId, card, scores) => {
+    const fixtureScores = scores.filter(score => score.fixture_entry_id);
     const entriesByName = new Map(state.entries
       .filter(entry => entry.fixture_id === fixtureId)
       .map(entry => [String(entry.player_name || '').trim(), entry]));
     const isStandalone = card.classList.contains('precommit-countback-card');
+    const valuesFor = entryId => {
+      const entryScores = fixtureScores.filter(score => score.fixture_entry_id === entryId);
+      const points = hole => entryScores.find(score => Number(score.hole_number) === hole)?.stableford_points;
+      const total = (from, to) => {
+        const values = Array.from({ length: to - from + 1 }, (_, index) => points(from + index));
+        return values.every(value => value != null) ? values.reduce((sum, value) => sum + Number(value), 0) : null;
+      };
+      return [total(10, 18), total(13, 18), total(16, 18), points(18), total(1, 9), total(4, 9), total(7, 9), points(9)];
+    };
     card.querySelectorAll('tbody tr').forEach(row => {
       const cells = Array.from(row.children);
       const playerCell = cells[isStandalone ? 0 : 1];
       const entry = entriesByName.get(String(playerCell?.textContent || '').trim());
       if (!entry) return;
-      fixtureCountback(entry.id).forEach((value, index) => {
+      valuesFor(entry.id).forEach((value, index) => {
         const cell = cells[(isStandalone ? 2 : 3) + index];
         if (cell) cell.textContent = value == null ? '—' : String(value);
       });
     });
+  };
+
+  const enrichCountback = async (fixtureId, card) => {
+    if (countbackScores.has(fixtureId)) {
+      fillCountback(fixtureId, card, countbackScores.get(fixtureId));
+      return;
+    }
+    if (pendingFixtures.has(fixtureId)) return;
+    pendingFixtures.add(fixtureId);
+    const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, stableford_points');
+    if (error) {
+      pendingFixtures.delete(fixtureId);
+      return;
+    }
+    pendingFixtures.delete(fixtureId);
+    countbackScores.set(fixtureId, data || []);
+    const latestCard = document.querySelector('.countback-card:not(.precommit-countback-card)') || document.querySelector('.precommit-countback-card');
+    if (latestCard) fillCountback(fixtureId, latestCard, data || []);
   };
 
   const render = () => {
