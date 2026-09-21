@@ -1,25 +1,6 @@
 // Make countback evidence visible on an unfinished fixture, even with fewer
 // than five scored players. It remains provisional until the fixture is finalised.
 (() => {
-  const applyProvisionalPositions = () => {
-    const card = document.querySelector('.countback-card');
-    const table = document.querySelector('#app .section:not(.countback-card) .table');
-    if (!card || !table) return;
-    const rankedNames = Array.from(card.querySelectorAll('tbody tr')).map(row => String(row.children[1]?.textContent || '').trim()).filter(Boolean);
-    if (!rankedNames.length) return;
-    const body = table.querySelector('tbody');
-    const rowsByName = new Map(Array.from(body.rows).map(row => [String(row.children[1]?.textContent || '').trim(), row]));
-    const rankedRows = rankedNames.map(name => rowsByName.get(name)).filter(Boolean);
-    if (!rankedRows.length) return;
-    const firstOther = Array.from(body.rows).find(row => !rankedRows.includes(row));
-    rankedRows.forEach((row, index) => {
-      if (row.children[0]) row.children[0].textContent = `*${index + 1}`;
-      body.insertBefore(row, firstOther || null);
-    });
-    const heading = table.querySelector('thead th:first-child');
-    if (heading) heading.textContent = 'PROV.';
-  };
-  setInterval(applyProvisionalPositions, 300);
   const countbackScores = new Map();
   const pendingFixtures = new Set();
 
@@ -67,51 +48,6 @@
       if (row?.children[0]) row.children[0].textContent = String(index + 1);
     });
 
-    const resultsTable = document.querySelector('#app .section:not(.countback-card) .table');
-    if (!resultsTable) return;
-    const rows = Array.from(resultsTable.querySelectorAll('tbody tr')).map(row => {
-      const countback = countbackByName.get(String(row.children[1]?.textContent || '').trim());
-      return countback ? { row, ...countback } : null;
-    }).filter(Boolean);
-    if (!rows.length) return;
-    const compare = (first, second) => {
-      const points = second.points - first.points;
-      if (points) return points;
-      for (let index = 0; index < first.values.length; index += 1) {
-        const difference = Number(second.values[index] ?? -1) - Number(first.values[index] ?? -1);
-        if (difference) return difference;
-      }
-      return String(first.row.children[1]?.textContent).localeCompare(String(second.row.children[1]?.textContent));
-    };
-    const scored = rows.filter(item => Number.isFinite(item.points)).sort(compare);
-    const unscored = rows.filter(item => !Number.isFinite(item.points));
-    const body = resultsTable.querySelector('tbody');
-    scored.forEach((item, index) => {
-      if (item.row.children[0]) item.row.children[0].textContent = String(index + 1);
-      body.append(item.row);
-    });
-    unscored.forEach(item => body.append(item.row));
-    const positionHeading = resultsTable.querySelector('thead th:first-child');
-    if (positionHeading) positionHeading.textContent = 'PROV.';
-    requestAnimationFrame(() => scored.forEach((item, index) => {
-      if (item.row.isConnected && item.row.children[0]) item.row.children[0].textContent = String(index + 1);
-    }));
-    // Some fixture enhancements redraw immediately after this module. Apply
-    // the visible provisional top five once that redraw has completed.
-    setTimeout(() => {
-      const liveCard = document.querySelector('.countback-card');
-      const liveTable = document.querySelector('#app .section:not(.countback-card) .table');
-      if (!liveCard || !liveTable) return;
-      const order = Array.from(liveCard.querySelectorAll('tbody tr')).map(row => String(row.children[1]?.textContent || '').trim());
-      const liveBody = liveTable.querySelector('tbody');
-      const liveRows = Array.from(liveBody.rows);
-      const orderedRows = order.map(name => liveRows.find(row => String(row.children[1]?.textContent || '').trim() === name)).filter(Boolean);
-      const firstOther = liveRows.find(row => !orderedRows.includes(row));
-      orderedRows.forEach((row, index) => {
-        if (row.children[0]) row.children[0].textContent = String(index + 1);
-        liveBody.insertBefore(row, firstOther || null);
-      });
-    }, 100);
   };
 
   const enrichCountback = async (fixtureId, card) => {
@@ -128,6 +64,12 @@
     }
     pendingFixtures.delete(fixtureId);
     countbackScores.set(fixtureId, data || []);
+    state.provisionalCountbacks ||= {};
+    state.provisionalCountbacks[fixtureId] = data || [];
+    // The fixture renderer owns the main results table. Re-render it with the
+    // safe aggregate countback summaries so the provisional order survives
+    // any normal app redraw.
+    if (location.hash === `#fixtures/${fixtureId}` && typeof window.render === 'function') window.render();
     const latestCard = document.querySelector('.countback-card:not(.precommit-countback-card)') || document.querySelector('.precommit-countback-card');
     if (latestCard) fillCountback(fixtureId, latestCard, data || []);
   };

@@ -31,12 +31,46 @@ function fixtures(fixtureId) {
   const nameFor = item => item.historical ? item.entry.player_name : `${item.players?.first_name || ''} ${item.players?.surname || ''}`.trim();
   const indexFor = item => item.handicap_index_override ?? item.entry?.handicap_index_at_entry ?? snapshot(item.player_id)?.index_value;
   const hasScores = people.some(item => item.entry);
+  const provisionalCountbacks = new Map((fixture.status !== 'completed' ? state.provisionalCountbacks?.[fixture.id] : [])
+    .map(score => [score.fixture_entry_id, score]));
+  const countbackKeys = ['back_nine', 'last_six', 'last_three', 'hole_eighteen', 'front_nine', 'front_six', 'front_three', 'hole_nine'];
+  const compareCountback = (first, second) => {
+    const points = Number(second?.stableford_points ?? -1) - Number(first?.stableford_points ?? -1);
+    if (points) return points;
+    for (const key of countbackKeys) {
+      const difference = Number(second?.[key] ?? -1) - Number(first?.[key] ?? -1);
+      if (difference) return difference;
+    }
+    return 0;
+  };
 
   people.sort((a, b) => {
+    const provisionalDifference = compareCountback(provisionalCountbacks.get(a.entry?.id), provisionalCountbacks.get(b.entry?.id));
+    if (provisionalDifference) return provisionalDifference;
     const aPosition = a.entry?.competition_position, bPosition = b.entry?.competition_position;
     if (hasScores) return Number(b.entry?.order_of_merit_points ?? 0) - Number(a.entry?.order_of_merit_points ?? 0) || Number(b.entry?.stableford_points ?? -1) - Number(a.entry?.stableford_points ?? -1) || (aPosition ?? Number.MAX_SAFE_INTEGER) - (bPosition ?? Number.MAX_SAFE_INTEGER) || nameFor(a).localeCompare(nameFor(b));
     return nameFor(a).localeCompare(nameFor(b));
   });
+
+  const provisionalRanks = new Map();
+  if (provisionalCountbacks.size) {
+    let position = 0;
+    let previous = null;
+    let previousEntryId = null;
+    people.forEach((item, index) => {
+      const summary = provisionalCountbacks.get(item.entry?.id);
+      if (!summary) return;
+      if (!previous || compareCountback(previous, summary) !== 0) {
+        position = index + 1;
+        provisionalRanks.set(item.entry.id, `*${position}`);
+      } else {
+        provisionalRanks.set(previousEntryId, `*=${position}`);
+        provisionalRanks.set(item.entry.id, `*=${position}`);
+      }
+      previous = summary;
+      previousEntryId = item.entry.id;
+    });
+  }
 
   const rows = people.map(item => {
     const entry = item.entry, index = indexFor(item), name = nameFor(item);
@@ -44,7 +78,9 @@ function fixtures(fixtureId) {
     // results renderer is replaced by this file, so a real link remains
     // dependable on both desktop and mobile when opening an official card.
     const playerCell = entry?.id ? `<a class="text-link scorecard-result-link" href="#scorecard/${entry.id}">${esc(name)}${item.is_guest ? ' (Guest)' : ''}</a>` : `${esc(name)}${item.is_guest ? ' (Guest)' : ''}`;
-    return `<tr><td>${entry?.competition_position ?? '—'}</td><td>${playerCell}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${course && index != null ? playingHandicap(index, fixture, course) : '—'}</td><td>${entry ? (entry.gross_score == null ? 'NR' : entry.gross_score) : '—'}</td><td>${entry?.nett_score ?? '—'}</td><td>${entry?.stableford_points ?? '—'}</td><td>${entry?.order_of_merit_points ?? '—'}</td></tr>`;
+    const provisionalRank = entry?.id ? provisionalRanks.get(entry.id) : null;
+    const position = entry?.competition_position ?? provisionalRank ?? '—';
+    return `<tr><td>${position}</td><td>${playerCell}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${course && index != null ? playingHandicap(index, fixture, course) : '—'}</td><td>${entry ? (entry.gross_score == null ? 'NR' : entry.gross_score) : '—'}</td><td>${entry?.nett_score ?? '—'}</td><td>${entry?.stableford_points ?? '—'}</td><td>${entry?.order_of_merit_points ?? '—'}</td></tr>`;
   }).join('');
 
   const scored = people.filter(item => item.entry?.gross_score != null && item.entry?.stableford_points != null);
@@ -52,5 +88,5 @@ function fixtures(fixtureId) {
   const countbackPeople = fifthPoints == null ? [] : scored.filter((item, index) => index < 5 || Number(item.entry.stableford_points) === Number(fifthPoints));
   const countback = countbackPeople.length && typeof fixtureCountback === 'function' ? `<details class="section countback-card"><summary><strong>Countback confirmation</strong></summary><p class="intro">Top five and anyone tied with fifth are shown. Compare from left to right only when total points are tied.</p><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Pts</th><th>10–18</th><th>13–18</th><th>16–18</th><th>18</th><th>1–9</th><th>4–9</th><th>7–9</th><th>9</th></tr></thead><tbody>${countbackPeople.map(item => { const values = fixtureCountback(item.entry.id).map(value => value == null ? '—' : value); return `<tr><td>${item.entry.competition_position ?? '—'}</td><td>${esc(nameFor(item))}</td><td>${item.entry.stableford_points}</td>${values.map(value => `<td>${value}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div></details>` : '';
 
-  return `<p class="eyebrow">${date(fixture.fixture_date)}</p><h1>${esc(fixture.name)}${fixture.competition_name ? ` – ${esc(fixture.competition_name)}` : ''}</h1>${course ? `<p class="intro">Par ${course.par} · Slope ${course.slope_rating} · Course rating ${course.course_rating}</p>` : ''}<section class="section"><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Index</th><th>Playing</th><th>Gross</th><th>Nett</th><th>Pts</th><th>OOM</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No participants added.</td></tr>'}</tbody></table></div>${hasScores && people.some(item => item.entry?.competition_position == null) ? '<p class="intro">Finalise results to apply the countback and Order of Merit positions.</p>' : ''}</section>${countback}`;
+  return `<p class="eyebrow">${date(fixture.fixture_date)}</p><h1>${esc(fixture.name)}${fixture.competition_name ? ` – ${esc(fixture.competition_name)}` : ''}</h1>${course ? `<p class="intro">Par ${course.par} · Slope ${course.slope_rating} · Course rating ${course.course_rating}</p>` : ''}<section class="section"><div class="table-responsive"><table class="table"><thead><tr><th>${provisionalCountbacks.size ? 'PROV.' : 'Pos'}</th><th>Player</th><th>Index</th><th>Playing</th><th>Gross</th><th>Nett</th><th>Pts</th><th>OOM</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No participants added.</td></tr>'}</tbody></table></div>${hasScores && people.some(item => item.entry?.competition_position == null) ? '<p class="intro">Finalise results to apply the countback and Order of Merit positions.</p>' : ''}</section>${countback}`;
 }
