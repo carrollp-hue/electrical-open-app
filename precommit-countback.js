@@ -23,6 +23,26 @@
         if (cell) cell.textContent = value == null ? '—' : String(value);
       });
     });
+
+    // The official positions remain unset until commitment, but place the
+    // on-screen fixture list in the same provisional order for checking.
+    const resultsTable = document.querySelector('#app .section:not(.countback-card) .table');
+    if (!resultsTable) return;
+    const rows = Array.from(resultsTable.querySelectorAll('tbody tr')).map(row => {
+      const entry = entriesByName.get(String(row.children[1]?.textContent || '').trim());
+      return entry ? { row, entry, values: valuesFor(entry.id) } : null;
+    }).filter(Boolean);
+    if (!rows.length) return;
+    const compare = (first, second) => {
+      const points = Number(second.entry.stableford_points) - Number(first.entry.stableford_points);
+      if (points) return points;
+      for (let index = 0; index < first.values.length; index += 1) {
+        const difference = Number(second.values[index] ?? -1) - Number(first.values[index] ?? -1);
+        if (difference) return difference;
+      }
+      return String(first.entry.player_name).localeCompare(String(second.entry.player_name));
+    };
+    rows.sort(compare).forEach(item => resultsTable.querySelector('tbody').append(item.row));
   };
 
   const enrichCountback = async (fixtureId, card) => {
