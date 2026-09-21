@@ -42,7 +42,16 @@
       }
       return String(first.entry.player_name).localeCompare(String(second.entry.player_name));
     };
-    rows.sort(compare).forEach(item => resultsTable.querySelector('tbody').append(item.row));
+    const scored = rows.filter(item => item.entry.stableford_points != null).sort(compare);
+    const unscored = rows.filter(item => item.entry.stableford_points == null);
+    const body = resultsTable.querySelector('tbody');
+    scored.forEach((item, index) => {
+      if (item.row.children[0]) item.row.children[0].textContent = String(index + 1);
+      body.append(item.row);
+    });
+    unscored.forEach(item => body.append(item.row));
+    const positionHeading = resultsTable.querySelector('thead th:first-child');
+    if (positionHeading) positionHeading.textContent = 'PROV.';
   };
 
   const enrichCountback = async (fixtureId, card) => {
