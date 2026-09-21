@@ -45,8 +45,19 @@ function fixtures(fixtureId) {
   };
 
   people.sort((a, b) => {
-    const provisionalDifference = compareCountback(provisionalCountbacks.get(a.entry?.id), provisionalCountbacks.get(b.entry?.id));
-    if (provisionalDifference) return provisionalDifference;
+    if (provisionalCountbacks.size) {
+      const aPoints = Number(a.entry?.stableford_points ?? -1);
+      const bPoints = Number(b.entry?.stableford_points ?? -1);
+      if (aPoints !== bPoints) return bPoints - aPoints;
+      // Only the top five provisional places can receive Order of Merit
+      // points, so countback is used there and not for lower tied scores.
+      const higherScores = people.filter(item => Number(item.entry?.stableford_points ?? -1) > aPoints).length;
+      if (higherScores < 5) {
+        const provisionalDifference = compareCountback(provisionalCountbacks.get(a.entry?.id), provisionalCountbacks.get(b.entry?.id));
+        if (provisionalDifference) return provisionalDifference;
+      }
+      return nameFor(a).localeCompare(nameFor(b));
+    }
     const aPosition = a.entry?.competition_position, bPosition = b.entry?.competition_position;
     if (hasScores) return Number(b.entry?.order_of_merit_points ?? 0) - Number(a.entry?.order_of_merit_points ?? 0) || Number(b.entry?.stableford_points ?? -1) - Number(a.entry?.stableford_points ?? -1) || (aPosition ?? Number.MAX_SAFE_INTEGER) - (bPosition ?? Number.MAX_SAFE_INTEGER) || nameFor(a).localeCompare(nameFor(b));
     return nameFor(a).localeCompare(nameFor(b));
@@ -54,21 +65,12 @@ function fixtures(fixtureId) {
 
   const provisionalRanks = new Map();
   if (provisionalCountbacks.size) {
-    let position = 0;
-    let previous = null;
-    let previousEntryId = null;
     people.forEach((item, index) => {
       const summary = provisionalCountbacks.get(item.entry?.id);
       if (!summary) return;
-      if (!previous || compareCountback(previous, summary) !== 0) {
-        position = index + 1;
-        provisionalRanks.set(item.entry.id, `*${position}`);
-      } else {
-        provisionalRanks.set(previousEntryId, `*=${position}`);
-        provisionalRanks.set(item.entry.id, `*=${position}`);
-      }
-      previous = summary;
-      previousEntryId = item.entry.id;
+      const points = Number(item.entry.stableford_points);
+      const firstWithPoints = people.findIndex(candidate => Number(candidate.entry?.stableford_points) === points);
+      provisionalRanks.set(item.entry.id, `*${index < 5 ? index + 1 : firstWithPoints + 1}`);
     });
   }
 

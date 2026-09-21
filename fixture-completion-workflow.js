@@ -118,8 +118,17 @@
     // points, then by Stableford points. Provisional rows have no OOM award,
     // so remain beneath official results and are ordered by their points.
     people.sort((a, b) => {
-      const provisionalDifference = compareCountback(countbacks.get(a.entry?.id), countbacks.get(b.entry?.id));
-      if (provisionalDifference) return provisionalDifference;
+      if (countbacks.size) {
+        const aPoints = Number(a.entry?.stableford_points ?? a.totals?.points ?? -1);
+        const bPoints = Number(b.entry?.stableford_points ?? b.totals?.points ?? -1);
+        if (aPoints !== bPoints) return bPoints - aPoints;
+        const higherScores = people.filter(item => Number(item.entry?.stableford_points ?? item.totals?.points ?? -1) > aPoints).length;
+        if (higherScores < 5) {
+          const provisionalDifference = compareCountback(countbacks.get(a.entry?.id), countbacks.get(b.entry?.id));
+          if (provisionalDifference) return provisionalDifference;
+        }
+        return `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
+      }
       const aOOM = a.entry ? Number(a.entry.order_of_merit_points ?? 0) : -1;
       const bOOM = b.entry ? Number(b.entry.order_of_merit_points ?? 0) : -1;
       const aPoints = Number(a.entry?.stableford_points ?? a.totals?.points ?? -1);
@@ -128,21 +137,12 @@
     });
     const provisionalRanks = new Map();
     if (countbacks.size) {
-      let position = 0;
-      let previous = null;
-      let previousEntryId = null;
       people.forEach((item, index) => {
         const summary = countbacks.get(item.entry?.id);
         if (!summary) return;
-        if (!previous || compareCountback(previous, summary) !== 0) {
-          position = index + 1;
-          provisionalRanks.set(item.entry.id, `*${position}`);
-        } else {
-          provisionalRanks.set(previousEntryId, `*=${position}`);
-          provisionalRanks.set(item.entry.id, `*=${position}`);
-        }
-        previous = summary;
-        previousEntryId = item.entry.id;
+        const points = Number(item.entry.stableford_points);
+        const firstWithPoints = people.findIndex(candidate => Number(candidate.entry?.stableford_points ?? candidate.totals?.points) === points);
+        provisionalRanks.set(item.entry.id, `*${index < 5 ? index + 1 : firstWithPoints + 1}`);
       });
     }
     const header = table.querySelector('thead');
