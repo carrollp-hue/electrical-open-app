@@ -33,6 +33,7 @@ as $$
   join public.fixtures f on f.id = e.fixture_id
   where e.fixture_id = p_fixture_id
     and f.status not in ('completed', 'published', 'archived')
+    and e.stableford_points is not null
   group by hs.fixture_entry_id, e.stableford_points;
 $$;
 
