@@ -5,19 +5,13 @@
   const pendingFixtures = new Set();
 
   const fillCountback = (fixtureId, card, scores) => {
-    const fixtureScores = scores.filter(score => score.fixture_entry_id);
     const entriesByName = new Map(state.entries
       .filter(entry => entry.fixture_id === fixtureId)
       .map(entry => [String(entry.player_name || '').trim(), entry]));
     const isStandalone = card.classList.contains('precommit-countback-card');
     const valuesFor = entryId => {
-      const entryScores = fixtureScores.filter(score => score.fixture_entry_id === entryId);
-      const points = hole => entryScores.find(score => Number(score.hole_number) === hole)?.stableford_points;
-      const total = (from, to) => {
-        const values = Array.from({ length: to - from + 1 }, (_, index) => points(from + index));
-        return values.every(value => value != null) ? values.reduce((sum, value) => sum + Number(value), 0) : null;
-      };
-      return [total(10, 18), total(13, 18), total(16, 18), points(18), total(1, 9), total(4, 9), total(7, 9), points(9)];
+      const score = scores.find(item => item.fixture_entry_id === entryId);
+      return score ? [score.back_nine, score.last_six, score.last_three, score.hole_eighteen, score.front_nine, score.front_six, score.front_three, score.hole_nine] : [];
     };
     card.querySelectorAll('tbody tr').forEach(row => {
       const cells = Array.from(row.children);
@@ -38,7 +32,7 @@
     }
     if (pendingFixtures.has(fixtureId)) return;
     pendingFixtures.add(fixtureId);
-    const { data, error } = await client.from('hole_scores').select('fixture_entry_id, hole_number, stableford_points');
+    const { data, error } = await client.rpc('fixture_provisional_countbacks', { p_fixture_id: fixtureId });
     if (error) {
       pendingFixtures.delete(fixtureId);
       return;
