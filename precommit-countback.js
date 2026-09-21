@@ -69,7 +69,7 @@
     // The fixture renderer owns the main results table. Re-render it with the
     // safe aggregate countback summaries so the provisional order survives
     // any normal app redraw.
-    if (location.hash === `#fixtures/${fixtureId}` && typeof window.render === 'function') window.render();
+    if (location.hash === `#fixtures/${fixtureId}`) window.dispatchEvent(new HashChangeEvent('hashchange'));
     const latestCard = document.querySelector('.countback-card:not(.precommit-countback-card)') || document.querySelector('.precommit-countback-card');
     if (latestCard) fillCountback(fixtureId, latestCard, data || []);
   };
