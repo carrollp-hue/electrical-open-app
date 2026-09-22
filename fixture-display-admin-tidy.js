@@ -16,16 +16,17 @@
     const fixture = fixtureId && state.fixtures.find(item => item.id === fixtureId);
     if (!fixture || fixture.status !== 'completed') return;
     const card = document.querySelector('.countback-card');
-    if (!card || card.dataset.savedCountbackReady === fixtureId) return;
+    if (!card || card.dataset.savedCountbackReady === fixtureId || card.dataset.savedCountbackLoading === fixtureId) return;
+    card.dataset.savedCountbackLoading = fixtureId;
     const entryIds = [...card.querySelectorAll('a[href^="#scorecard/"]')]
       .map(anchor => anchor.getAttribute('href')?.split('/')[1])
       .filter(Boolean);
-    if (!entryIds.length) return;
+    if (!entryIds.length) { delete card.dataset.savedCountbackLoading; return; }
     const { data: savedScores, error } = await client
       .from('hole_scores')
       .select('fixture_entry_id, hole_number, stableford_points')
       .in('fixture_entry_id', entryIds);
-    if (error) return;
+    if (error) { delete card.dataset.savedCountbackLoading; return; }
     card.querySelectorAll('tbody tr').forEach(row => {
       const href = row.querySelector('a[href^="#scorecard/"]')?.getAttribute('href');
       const entryId = href?.split('/')[1];
@@ -36,6 +37,7 @@
       });
     });
     card.dataset.savedCountbackReady = fixtureId;
+    delete card.dataset.savedCountbackLoading;
   };
 
   // The original entry query predates saved playing handicaps. Enrich entries
@@ -156,7 +158,7 @@
     body.dataset.oomSorted = fixtureId;
   };
 
-  const wire = () => { addSeasonYearStarter(); tidyFixtureOverride(); tidyResultOrder(); };
+  const wire = () => { addSeasonYearStarter(); tidyFixtureOverride(); tidyResultOrder(); fillCompletedCountback(); };
   new MutationObserver(wire).observe(app, { childList: true, subtree: true });
   window.addEventListener('hashchange', wire);
   wire();
