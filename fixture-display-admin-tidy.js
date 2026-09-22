@@ -94,6 +94,9 @@
     const scoredRows = rows.map(row => ({ row, entry: entryFor(row) }));
     if (!scoredRows.some(item => item.entry)) return;
     scoredRows.sort((a, b) => {
+      if (fixture.status === 'completed') {
+        return Number(a.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) - Number(b.entry?.competition_position ?? Number.MAX_SAFE_INTEGER);
+      }
       const aOOM = Number(a.entry?.order_of_merit_points ?? -1);
       const bOOM = Number(b.entry?.order_of_merit_points ?? -1);
       const aPoints = Number(a.entry?.stableford_points ?? -1);

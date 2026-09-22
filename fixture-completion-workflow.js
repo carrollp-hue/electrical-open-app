@@ -118,6 +118,10 @@
     // points, then by Stableford points. Provisional rows have no OOM award,
     // so remain beneath official results and are ordered by their points.
     people.sort((a, b) => {
+      if (fixture.status === 'completed') {
+        return Number(a.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) - Number(b.entry?.competition_position ?? Number.MAX_SAFE_INTEGER)
+          || `${a.players?.surname}`.localeCompare(`${b.players?.surname}`);
+      }
       if (countbacks.size) {
         const aPoints = Number(a.entry?.stableford_points ?? a.totals?.points ?? -1);
         const bPoints = Number(b.entry?.stableford_points ?? b.totals?.points ?? -1);

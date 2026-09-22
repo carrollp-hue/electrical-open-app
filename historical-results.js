@@ -45,6 +45,12 @@ function fixtures(fixtureId) {
   };
 
   people.sort((a, b) => {
+    // A committed fixture has an official position already calculated and
+    // saved by the database. It is the single source of truth for results.
+    if (fixture.status === 'completed') {
+      return Number(a.entry?.competition_position ?? Number.MAX_SAFE_INTEGER) - Number(b.entry?.competition_position ?? Number.MAX_SAFE_INTEGER)
+        || nameFor(a).localeCompare(nameFor(b));
+    }
     if (provisionalCountbacks.size) {
       const aPoints = Number(a.entry?.stableford_points ?? -1);
       const bPoints = Number(b.entry?.stableford_points ?? -1);
@@ -88,7 +94,11 @@ function fixtures(fixtureId) {
   const scored = people.filter(item => item.entry?.gross_score != null && item.entry?.stableford_points != null);
   const fifthPoints = scored[4]?.entry?.stableford_points;
   const countbackPeople = fifthPoints == null ? [] : scored.filter((item, index) => index < 5 || Number(item.entry.stableford_points) === Number(fifthPoints));
-  const countback = countbackPeople.length && typeof fixtureCountback === 'function' ? `<details class="section countback-card"><summary><strong>Countback confirmation</strong></summary><p class="intro">Top five and anyone tied with fifth are shown. Compare from left to right only when total points are tied.</p><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Pts</th><th>10–18</th><th>13–18</th><th>16–18</th><th>18</th><th>1–9</th><th>4–9</th><th>7–9</th><th>9</th></tr></thead><tbody>${countbackPeople.map(item => { const values = fixtureCountback(item.entry.id).map(value => value == null ? '—' : value); return `<tr><td>${item.entry.competition_position ?? '—'}</td><td>${esc(nameFor(item))}</td><td>${item.entry.stableford_points}</td>${values.map(value => `<td>${value}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div></details>` : '';
+  const countbackTitle = fixture.status === 'completed' ? 'Countback confirmation' : 'Provisional countback — before commitment';
+  const countbackNote = fixture.status === 'completed'
+    ? 'Top five and anyone tied with fifth are shown. Official positions are saved when the fixture is committed.'
+    : 'These figures are based on entered official scorecards. Check tied totals from left to right before finalising the fixture.';
+  const countback = countbackPeople.length && typeof fixtureCountback === 'function' ? `<details class="section countback-card"><summary><strong>${countbackTitle}</strong></summary><p class="intro">${countbackNote}</p><div class="table-responsive"><table class="table"><thead><tr><th>Pos</th><th>Player</th><th>Pts</th><th>10–18</th><th>13–18</th><th>16–18</th><th>18</th><th>1–9</th><th>4–9</th><th>7–9</th><th>9</th></tr></thead><tbody>${countbackPeople.map(item => { const values = fixtureCountback(item.entry.id).map(value => value == null ? '—' : value); return `<tr><td>${item.entry.competition_position ?? '—'}</td><td>${esc(nameFor(item))}</td><td>${item.entry.stableford_points}</td>${values.map(value => `<td>${value}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div></details>` : '';
 
   return `<p class="eyebrow">${date(fixture.fixture_date)}</p><h1>${esc(fixture.name)}${fixture.competition_name ? ` – ${esc(fixture.competition_name)}` : ''}</h1>${course ? `<p class="intro">Par ${course.par} · Slope ${course.slope_rating} · Course rating ${course.course_rating}</p>` : ''}<section class="section"><div class="table-responsive"><table class="table"><thead><tr><th>${provisionalCountbacks.size ? 'PROV.' : 'Pos'}</th><th>Player</th><th>Index</th><th>Playing</th><th>Gross</th><th>Nett</th><th>Pts</th><th>OOM</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No participants added.</td></tr>'}</tbody></table></div>${hasScores && people.some(item => item.entry?.competition_position == null) ? '<p class="intro">Finalise results to apply the countback and Order of Merit positions.</p>' : ''}</section>${countback}`;
 }
