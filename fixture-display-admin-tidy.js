@@ -1,4 +1,34 @@
 (() => {
+  const countbackValues = entryId => {
+    const scores = (state.holeScores || []).filter(score => score.fixture_entry_id === entryId);
+    const total = (from, to) => {
+      const values = scores.filter(score => score.hole_number >= from && score.hole_number <= to).map(score => score.stableford_points);
+      return values.length === to - from + 1 && values.every(value => value != null)
+        ? values.reduce((sum, value) => sum + Number(value), 0)
+        : null;
+    };
+    const single = hole => scores.find(score => score.hole_number === hole)?.stableford_points ?? null;
+    return [total(10, 18), total(13, 18), total(16, 18), single(18), total(1, 9), total(4, 9), total(7, 9), single(9)];
+  };
+
+  const fillCompletedCountback = () => {
+    const fixtureId = (location.hash.match(/^#fixtures\/([^/]+)/) || [])[1];
+    const fixture = fixtureId && state.fixtures.find(item => item.id === fixtureId);
+    if (!fixture || fixture.status !== 'completed') return;
+    const card = document.querySelector('.countback-card');
+    if (!card || card.dataset.savedCountbackReady === fixtureId) return;
+    card.querySelectorAll('tbody tr').forEach(row => {
+      const href = row.querySelector('a[href^="#scorecard/"]')?.getAttribute('href');
+      const entryId = href?.split('/')[1];
+      if (!entryId) return;
+      const cells = [...row.children];
+      countbackValues(entryId).forEach((value, index) => {
+        if (cells[index + 3]) cells[index + 3].textContent = value == null ? '—' : String(value);
+      });
+    });
+    card.dataset.savedCountbackReady = fixtureId;
+  };
+
   // The original entry query predates saved playing handicaps. Enrich entries
   // after each normal load so completed scorecards use the value used on the day.
   const previousLoad = load;
@@ -16,7 +46,10 @@
     // otherwise leave the confirmation table with no score data.
     state.holeScores = holeScores || [];
     render();
+    setTimeout(fillCompletedCountback, 0);
   };
+
+  window.addEventListener('hashchange', () => setTimeout(fillCompletedCountback, 0));
 
   const previousFixtures = fixtures;
   fixtures = function (fixtureId) {
