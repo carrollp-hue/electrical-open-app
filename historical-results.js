@@ -144,3 +144,12 @@ render = function () {
   renderHistoricalResults();
   setTimeout(() => { fillSavedCompletedCountback(); }, 0);
 };
+
+// On a full page load the core app can render before this late enhancement is
+// attached. Retry briefly so an already-open completed fixture is filled too.
+let countbackStartAttempts = 0;
+const countbackStartTimer = setInterval(() => {
+  fillSavedCompletedCountback();
+  countbackStartAttempts += 1;
+  if (document.querySelector('.countback-card')?.dataset.savedValuesReady || countbackStartAttempts >= 20) clearInterval(countbackStartTimer);
+}, 250);
