@@ -150,14 +150,25 @@ function applyFixtureScorecardRoute() { const scorecardMatch = location.hash.mat
 
 window.addEventListener('hashchange', applyFixtureScorecardRoute);
 
+function selectedDifferentialIds(rounds, clubHandicap) {
+  const qualifying = (rounds || [])
+    .filter(item => item.score_differential != null)
+    .sort((a, b) => String(b.fixture_date).localeCompare(String(a.fixture_date)))
+    .slice(0, 12);
+  const calculation = window.ElectricalOpenHandicap?.calculate({
+    rounds: qualifying.map(item => ({ id: item.id, date: item.fixture_date, scoreDifferential: item.score_differential, handicapIndexAtEntry: item.handicap_index_at_entry })),
+    clubHandicap
+  });
+  const calculated = (calculation?.selectedDifferentials || []).map(item => item.id).filter(Boolean);
+  if (calculated.length) return new Set(calculated);
+  const used = qualifying.length < 4 ? 1 : qualifying.length === 4 || qualifying.length === 5 ? 1 : qualifying.length === 6 ? 2 : qualifying.length <= 8 ? 2 : qualifying.length <= 11 ? 3 : 4;
+  return new Set(qualifying.slice().sort((a, b) => Number(a.score_differential) - Number(b.score_differential)).slice(0, used).map(item => item.id));
+}
+
 function handicapDifferentialChart(rounds, currentIndex, clubHandicap) {
   const points = rounds.filter(item => item.score_differential != null).slice(0, 12).reverse();
   if (!points.length) return '';
-  const calculation = window.ElectricalOpenHandicap?.calculate({
-    rounds: rounds.map(item => ({ id: item.id, date: item.fixture_date, scoreDifferential: item.qualifying_score_differential ?? item.score_differential, handicapIndexAtEntry: item.handicap_index_at_entry })),
-    clubHandicap
-  });
-  const selectedIds = new Set((calculation?.selectedDifferentials || []).map(item => item.id));
+  const selectedIds = selectedDifferentialIds(rounds.map(item => ({ ...item, score_differential: item.qualifying_score_differential ?? item.score_differential })), clubHandicap);
   const values = points.map(item => Number(item.score_differential));
   if (currentIndex != null) values.push(Number(currentIndex));
   if (clubHandicap != null && Number.isFinite(Number(clubHandicap))) values.push(Number(clubHandicap));
@@ -212,11 +223,7 @@ function handicap(roundId) {
   const index = snapshot(current.id), club = current.club_handicap;
   const submitted = current.club_handicap_submitted_at ? longDate(current.club_handicap_submitted_at) : 'Not submitted';
   const chartRounds = recent.map(item => ({ ...item, qualifying_score_differential: item.score_differential, score_differential: displayedDifferential(item) }));
-  const calculation = window.ElectricalOpenHandicap?.calculate({
-    rounds: recent.map(item => ({ id: item.id, date: item.fixture_date, scoreDifferential: item.score_differential, handicapIndexAtEntry: item.handicap_index_at_entry })),
-    clubHandicap: club
-  });
-  const usedDifferentialIds = new Set((calculation?.selectedDifferentials || []).map(item => item.id));
+  const usedDifferentialIds = selectedDifferentialIds(recent, club);
   const hasDisplayOnly = recent.some(item => item.score_differential == null && item.historic_display_differential != null);
   return `<p class="eyebrow">${esc(current.first_name)} ${esc(current.surname)}</p><h1>Your handicap</h1><section class="index-card"><p class="eyebrow">Current society index</p><div class="index">${index ? Number(index.index_value).toFixed(1) : '—'}</div><p class="index-note">Club handicap: <strong>${club == null ? '—' : Number(club).toFixed(1)}</strong><br>Submitted: ${submitted}</p></section>${qualifyingDifferentialChart(chartRounds, index?.index_value, club)}${hasDisplayOnly ? '<p class="intro">Historic display-only differentials are shown for reference and do not affect your current index.</p>' : ''}<section class="section"><div class="section-head"><h2>Latest rounds</h2><span class="pill">Tap a round</span></div><p class="intro">A <strong>*</strong> marks a differential used in your current society-index calculation.</p>${recent.length ? `<table class="table"><tbody>${recent.slice(0,12).map(item => { const differential = displayedDifferential(item); const used = usedDifferentialIds.has(item.id); return `<tr data-round-id="${item.id}" style="cursor:pointer"><td><strong>${date(item.fixture_date)}</strong><br><span>${esc(item.fixture_name)}${item.score_differential == null && differential != null ? ' · historic' : ''}</span></td><td>${differential == null ? '—' : `${Number(differential).toFixed(1)}${used ? ' <strong class="used-differential" aria-label="Used in current index calculation">*</strong>' : ''}`}</td></tr>`; }).join('')}</tbody></table>` : empty('No rounds available.')}</section>`;
 }
