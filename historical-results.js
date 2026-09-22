@@ -108,9 +108,9 @@ function fixtures(fixtureId) {
 // after every fixture redraw, so it cannot fall back to empty placeholders.
 async function fillSavedCompletedCountback() {
   const fixtureId = (location.hash.match(/^#fixtures\/([^/]+)/) || [])[1];
-  const fixture = fixtureId && state.fixtures.find(item => item.id === fixtureId);
   const card = document.querySelector('.countback-card');
-  if (!fixture || fixture.status !== 'completed' || !card || card.dataset.savedValuesReady === fixtureId || card.dataset.savedValuesLoading === fixtureId) return;
+  const title = card?.querySelector('summary')?.textContent || '';
+  if (!fixtureId || !card || title.includes('Provisional') || card.dataset.savedValuesReady === fixtureId || card.dataset.savedValuesLoading === fixtureId) return;
   const entryIds = [...card.querySelectorAll('a[href^="#scorecard/"]')]
     .map(anchor => anchor.getAttribute('href')?.split('/')[1])
     .filter(Boolean);
@@ -119,7 +119,7 @@ async function fillSavedCompletedCountback() {
   const { data, error } = await client.from('hole_scores')
     .select('fixture_entry_id, hole_number, stableford_points')
     .in('fixture_entry_id', entryIds);
-  if (error) { card.dataset.savedValuesError = error.message; delete card.dataset.savedValuesLoading; return; }
+  if (error) { delete card.dataset.savedValuesLoading; return; }
   const valuesFor = entryId => {
     const scores = (data || []).filter(score => score.fixture_entry_id === entryId);
     const total = (from, to) => {
