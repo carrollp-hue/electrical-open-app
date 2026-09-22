@@ -157,7 +157,7 @@
     const values = new Map((data || []).map(item => [item.id, item]));
     state.memberDirectory = (state.memberDirectory || []).map(item => ({ ...item, ...(values.get(item.id) || {}) }));
     state.players = (state.players || []).map(item => ({ ...item, ...(values.get(item.id) || {}) }));
-    state.fixtureParticipants = (state.fixtureParticipants || []).map(item => ({ ...item, ...(participantData || []).find(value => value.fixture_id === item.fixture_id && value.player_id === item.player_id) || {}) }));
+    state.fixtureParticipants = (state.fixtureParticipants || []).map(item => ({ ...item, ...((participantData || []).find(value => value.fixture_id === item.fixture_id && value.player_id === item.player_id) || {}) }));
   };
 
   const applyFixturePlayingOverrides = () => {
