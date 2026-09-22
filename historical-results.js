@@ -31,7 +31,7 @@ function fixtures(fixtureId) {
   const nameFor = item => item.historical ? item.entry.player_name : `${item.players?.first_name || ''} ${item.players?.surname || ''}`.trim();
   const indexFor = item => item.handicap_index_override ?? item.entry?.handicap_index_at_entry ?? snapshot(item.player_id)?.index_value;
   const hasScores = people.some(item => item.entry);
-  const provisionalCountbacks = new Map((fixture.status !== 'completed' ? state.provisionalCountbacks?.[fixture.id] : [])
+  const provisionalCountbacks = new Map((fixture.status !== 'completed' ? (state.provisionalCountbacks?.[fixture.id] || []) : [])
     .map(score => [score.fixture_entry_id, score]));
   const countbackKeys = ['back_nine', 'last_six', 'last_three', 'hole_eighteen', 'front_nine', 'front_six', 'front_three', 'hole_nine'];
   const compareCountback = (first, second) => {
