@@ -111,9 +111,12 @@ async function fillSavedCompletedCountback() {
   const card = document.querySelector('.countback-card');
   const title = card?.querySelector('summary')?.textContent || '';
   if (!fixtureId || !card || title.includes('Provisional') || card.dataset.savedValuesReady === fixtureId || card.dataset.savedValuesLoading === fixtureId) return;
-  const entryIds = [...card.querySelectorAll('a[href^="#scorecard/"]')]
-    .map(anchor => anchor.getAttribute('href')?.split('/')[1])
-    .filter(Boolean);
+  const entryByName = new Map(state.entries
+    .filter(entry => entry.fixture_id === fixtureId)
+    .map(entry => [String(entry.player_name || '').trim(), entry.id]));
+  const entryIdForRow = row => row.querySelector('a[href^="#scorecard/"]')?.getAttribute('href')?.split('/')[1]
+    || entryByName.get(String(row.children[1]?.textContent || '').trim());
+  const entryIds = [...card.querySelectorAll('tbody tr')].map(entryIdForRow).filter(Boolean);
   if (!entryIds.length) return;
   card.dataset.savedValuesLoading = fixtureId;
   const { data, error } = await client.from('hole_scores')
@@ -130,7 +133,7 @@ async function fillSavedCompletedCountback() {
     return [total(10, 18), total(13, 18), total(16, 18), single(18), total(1, 9), total(4, 9), total(7, 9), single(9)];
   };
   card.querySelectorAll('tbody tr').forEach(row => {
-    const entryId = row.querySelector('a[href^="#scorecard/"]')?.getAttribute('href')?.split('/')[1];
+    const entryId = entryIdForRow(row);
     if (!entryId) return;
     const cells = [...row.children];
     valuesFor(entryId).forEach((value, index) => { if (cells[index + 3]) cells[index + 3].textContent = value == null ? '—' : String(value); });
