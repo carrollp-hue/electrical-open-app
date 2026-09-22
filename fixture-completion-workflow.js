@@ -152,8 +152,11 @@
     const header = table.querySelector('thead');
     if (!header || header.textContent.replace(/\s+/g, ' ').trim().indexOf('OOM') < 0) return;
     const rows = people.map(item => {
-      const index = item.handicap_index_override ?? snapshot(item.player_id)?.index_value;
       const official = item.entry;
+      // Once a scorecard is official, show the index and resulting playing
+      // handicap that were captured for that fixture—not today's recalculated
+      // society index.
+      const index = item.handicap_index_override ?? official?.handicap_index_at_entry ?? snapshot(item.player_id)?.index_value;
       const provisional = item.provisional, totals = item.totals;
       const result = official ? { gross: official.gross_score, nett: official.nett_score, points: official.stableford_points, position: official.competition_position ?? provisionalRanks.get(official.id) ?? '—', oom: fixture.status === 'completed' ? official.order_of_merit_points : '—' } : totals ? { gross: totals.gross, nett: totals.nett, points: totals.points, position: '—', oom: '—' } : { gross: '—', nett: '—', points: '—', oom: '—' };
       const rowClass = provisional?.conflict ? 'provisional-result provisional-conflict' : provisional && !provisional.verified ? 'provisional-result' : '';
@@ -162,7 +165,8 @@
       // Use a real button for the result-card action. It provides a larger,
       // dependable tap target on touch devices than a hash-only text link.
       const playerCell = official?.id ? `<button class="text-link scorecard-result-link" type="button" data-open-official-scorecard="${official.id}">${playerName}</button>` : playerName;
-      return `<tr class="${rowClass}"><td>${result.position ?? '—'}</td><td>${playerCell}${flag}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${index == null ? '—' : playingFor(fixture, course, item.player_id)}</td><td>${result.gross == null ? 'NR' : result.gross}</td><td>${result.nett ?? '—'}</td><td>${result.points ?? '—'}</td><td>${result.oom}</td></tr>`;
+      const playing = official?.playing_handicap ?? (index == null ? null : playingFor(fixture, course, item.player_id));
+      return `<tr class="${rowClass}"><td>${result.position ?? '—'}</td><td>${playerCell}${flag}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${playing == null ? '—' : playing}</td><td>${result.gross == null ? 'NR' : result.gross}</td><td>${result.nett ?? '—'}</td><td>${result.points ?? '—'}</td><td>${result.oom}</td></tr>`;
     }).join('');
     table.querySelector('tbody').innerHTML = rows;
     if (countbacks.size) table.querySelector('thead th:first-child').textContent = 'PROV.';
