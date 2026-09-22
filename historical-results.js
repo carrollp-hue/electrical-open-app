@@ -119,7 +119,7 @@ async function fillSavedCompletedCountback() {
   const { data, error } = await client.from('hole_scores')
     .select('fixture_entry_id, hole_number, stableford_points')
     .in('fixture_entry_id', entryIds);
-  if (error) { delete card.dataset.savedValuesLoading; return; }
+  if (error) { card.dataset.savedValuesError = error.message; delete card.dataset.savedValuesLoading; return; }
   const valuesFor = entryId => {
     const scores = (data || []).filter(score => score.fixture_entry_id === entryId);
     const total = (from, to) => {
