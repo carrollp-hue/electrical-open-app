@@ -102,3 +102,45 @@ function fixtures(fixtureId) {
 
   return `<p class="eyebrow">${date(fixture.fixture_date)}</p><h1>${esc(fixture.name)}${fixture.competition_name ? ` – ${esc(fixture.competition_name)}` : ''}</h1>${course ? `<p class="intro">Par ${course.par} · Slope ${course.slope_rating} · Course rating ${course.course_rating}</p>` : ''}<section class="section"><div class="table-responsive"><table class="table"><thead><tr><th>${provisionalCountbacks.size ? 'PROV.' : 'Pos'}</th><th>Player</th><th>Index</th><th>Playing</th><th>Gross</th><th>Nett</th><th>Pts</th><th>OOM</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No participants added.</td></tr>'}</tbody></table></div>${hasScores && people.some(item => item.entry?.competition_position == null) ? '<p class="intro">Finalise results to apply the countback and Order of Merit positions.</p>' : ''}</section>${countback}`;
 }
+
+// Completed results are rendered before the asynchronous display add-ons run.
+// Populate the confirmation table directly from the persisted per-hole points
+// after every fixture redraw, so it cannot fall back to empty placeholders.
+async function fillSavedCompletedCountback() {
+  const fixtureId = (location.hash.match(/^#fixtures\/([^/]+)/) || [])[1];
+  const fixture = fixtureId && state.fixtures.find(item => item.id === fixtureId);
+  const card = document.querySelector('.countback-card');
+  if (!fixture || fixture.status !== 'completed' || !card || card.dataset.savedValuesReady === fixtureId || card.dataset.savedValuesLoading === fixtureId) return;
+  const entryIds = [...card.querySelectorAll('a[href^="#scorecard/"]')]
+    .map(anchor => anchor.getAttribute('href')?.split('/')[1])
+    .filter(Boolean);
+  if (!entryIds.length) return;
+  card.dataset.savedValuesLoading = fixtureId;
+  const { data, error } = await client.from('hole_scores')
+    .select('fixture_entry_id, hole_number, stableford_points')
+    .in('fixture_entry_id', entryIds);
+  if (error) { delete card.dataset.savedValuesLoading; return; }
+  const valuesFor = entryId => {
+    const scores = (data || []).filter(score => score.fixture_entry_id === entryId);
+    const total = (from, to) => {
+      const values = scores.filter(score => score.hole_number >= from && score.hole_number <= to).map(score => score.stableford_points);
+      return values.length === to - from + 1 && values.every(value => value != null) ? values.reduce((sum, value) => sum + Number(value), 0) : null;
+    };
+    const single = hole => scores.find(score => score.hole_number === hole)?.stableford_points ?? null;
+    return [total(10, 18), total(13, 18), total(16, 18), single(18), total(1, 9), total(4, 9), total(7, 9), single(9)];
+  };
+  card.querySelectorAll('tbody tr').forEach(row => {
+    const entryId = row.querySelector('a[href^="#scorecard/"]')?.getAttribute('href')?.split('/')[1];
+    if (!entryId) return;
+    const cells = [...row.children];
+    valuesFor(entryId).forEach((value, index) => { if (cells[index + 3]) cells[index + 3].textContent = value == null ? '—' : String(value); });
+  });
+  card.dataset.savedValuesReady = fixtureId;
+  delete card.dataset.savedValuesLoading;
+}
+
+const renderHistoricalResults = render;
+render = function () {
+  renderHistoricalResults();
+  setTimeout(() => { fillSavedCompletedCountback(); }, 0);
+};
