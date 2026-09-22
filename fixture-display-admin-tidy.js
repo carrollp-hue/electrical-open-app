@@ -4,10 +4,17 @@
   const previousLoad = load;
   load = async function () {
     await previousLoad();
-    const { data, error } = await client.from('fixture_entries').select('id, handicap_index_at_entry, playing_handicap');
-    if (error) throw error;
+    const [{ data, error }, { data: holeScores, error: holeScoresError }] = await Promise.all([
+      client.from('fixture_entries').select('id, handicap_index_at_entry, playing_handicap'),
+      client.from('hole_scores').select('fixture_entry_id, hole_number, gross_score, handicap_strokes, stableford_points')
+    ]);
+    if (error || holeScoresError) throw (error || holeScoresError);
     const values = new Map((data || []).map(item => [item.id, item]));
     state.entries.forEach(entry => Object.assign(entry, values.get(entry.id) || {}));
+    // The finished-fixture countback is calculated from the saved per-hole
+    // Stableford values. Refresh them here because later display wrappers can
+    // otherwise leave the confirmation table with no score data.
+    state.holeScores = holeScores || [];
     render();
   };
 
