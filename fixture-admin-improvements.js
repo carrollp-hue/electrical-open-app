@@ -151,10 +151,13 @@
       client.from('fixture_participants').select('fixture_id, player_id, playing_handicap_override'),
     ]);
     if (error || participantError) return;
-    const values = new Map(data.map(item => [item.id, item]));
-    state.memberDirectory = state.memberDirectory.map(item => ({ ...item, ...(values.get(item.id) || {}) }));
-    state.players = state.players.map(item => ({ ...item, ...(values.get(item.id) || {}) }));
-    state.fixtureParticipants = state.fixtureParticipants.map(item => ({ ...item, ...(participantData.find(value => value.fixture_id === item.fixture_id && value.player_id === item.player_id) || {}) }));
+    // Supabase can return an empty payload while a stored session is being
+    // refreshed. This is an optional display enrichment, so never let it
+    // prevent the sign-in screen or the main application from loading.
+    const values = new Map((data || []).map(item => [item.id, item]));
+    state.memberDirectory = (state.memberDirectory || []).map(item => ({ ...item, ...(values.get(item.id) || {}) }));
+    state.players = (state.players || []).map(item => ({ ...item, ...(values.get(item.id) || {}) }));
+    state.fixtureParticipants = (state.fixtureParticipants || []).map(item => ({ ...item, ...(participantData || []).find(value => value.fixture_id === item.fixture_id && value.player_id === item.player_id) || {}) }));
   };
 
   const applyFixturePlayingOverrides = () => {
