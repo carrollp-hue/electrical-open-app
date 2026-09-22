@@ -263,7 +263,10 @@ function fixtures(fixtureId) {
     return `${a.players?.surname}`.localeCompare(`${b.players?.surname}`) || `${a.players?.first_name}`.localeCompare(`${b.players?.first_name}`);
   });
   const rows = people.map(item => {
-    const index = item.handicap_index_override ?? snapshot(item.player_id)?.index_value, entry = item.entry;
+    // Results must retain the index used on the day.  Only an unscored
+    // participant (for example, on an upcoming fixture) should fall back to
+    // their live, recalculated index.
+    const entry = item.entry, index = item.handicap_index_override ?? entry?.handicap_index_at_entry ?? snapshot(item.player_id)?.index_value;
     const name = `${esc(item.players?.first_name)} ${esc(item.players?.surname)}${item.is_guest ? ' (Guest)' : ''}`;
     const playerCell = entry?.id ? `<a class="text-link" href="#scorecard/${entry.id}">${name}</a>` : name;
     return `<tr><td>${entry?.competition_position ?? '—'}</td><td>${playerCell}</td><td>${index == null ? '—' : Number(index).toFixed(1)}</td><td>${course && index != null ? playingHandicap(index, fixture, course) : '—'}</td><td>${entry ? (entry.gross_score == null ? 'NR' : entry.gross_score) : '—'}</td><td>${entry?.nett_score ?? '—'}</td><td>${entry?.stableford_points ?? '—'}</td><td>${entry?.order_of_merit_points ?? '—'}</td></tr>`;
