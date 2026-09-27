@@ -2,7 +2,7 @@ const config = window.ELECTRICAL_OPEN_CONFIG;
 const client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
 const app = document.querySelector('#app'), dialog = document.querySelector('#player-dialog'), select = document.querySelector('#player-select'), nav = document.querySelector('#main-nav'), signoutButton = document.querySelector('#signout-button'), playerButton = document.querySelector('#player-button'), adminNav = document.querySelector('#admin-nav');
 let session = null;
-let state = { isStaff: false, players: [], memberDirectory: [], snapshots: [], fixtures: [], entries: [], courseSetups: [], courseHoles: [], selectedPlayerId: null };
+let state = { isStaff: false, players: [], memberDirectory: [], snapshots: [], fixtures: [], entries: [], courseSetups: [], courseHoles: [], selectedPlayerId: null, handicapViewerId: null };
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
 const date = value => {
   const parsed = new Date(typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00Z` : value);
@@ -209,8 +209,9 @@ load = async function() {
 };
 
 const qualifyingDifferentialChart = handicapDifferentialChart;
+const handicapViewer = () => state.memberDirectory.find(item => item.id === state.handicapViewerId) || player();
 function handicap(roundId) {
-  const current = player();
+  const current = handicapViewer();
   if (!current) return empty('No player is linked to this account yet.');
   const recent = entries(current.id);
   if (roundId) {
@@ -224,7 +225,8 @@ function handicap(roundId) {
   const chartRounds = recent.map(item => ({ ...item, qualifying_score_differential: item.score_differential, score_differential: displayedDifferential(item) }));
   const usedDifferentialIds = selectedDifferentialIds(recent, club);
   const hasDisplayOnly = recent.some(item => item.score_differential == null && item.historic_display_differential != null);
-  return `<p class="eyebrow">${esc(current.first_name)} ${esc(current.surname)}</p><h1>Your handicap</h1><section class="index-card"><p class="eyebrow">Current society index</p><div class="index">${index ? Number(index.index_value).toFixed(1) : '—'}</div><p class="index-note">Club handicap: <strong>${club == null ? '—' : Number(club).toFixed(1)}</strong><br>Submitted: ${submitted}</p></section>${qualifyingDifferentialChart(chartRounds, index?.index_value, club)}${hasDisplayOnly ? '<p class="intro">Historic display-only differentials are shown for reference and do not affect your current index.</p>' : ''}<section class="section"><div class="section-head"><h2>Latest rounds</h2><span class="pill">Tap a round</span></div><p class="intro">A <strong>*</strong> marks a differential used in your current society-index calculation.</p>${recent.length ? `<table class="table"><tbody>${recent.slice(0,12).map(item => { const differential = displayedDifferential(item); const used = usedDifferentialIds.has(item.id); return `<tr data-round-id="${item.id}" style="cursor:pointer"><td><strong>${date(item.fixture_date)}</strong><br><span>${esc(item.fixture_name)}${item.score_differential == null && differential != null ? ' · historic' : ''}</span></td><td>${differential == null ? '—' : `${Number(differential).toFixed(1)}${used ? ' <strong class="used-differential" aria-label="Used in current index calculation">*</strong>' : ''}`}</td></tr>`; }).join('')}</tbody></table>` : empty('No rounds available.')}</section>`;
+  const viewerOptions = state.memberDirectory.filter(item => !item.is_guest).map(item => `<option value="${item.id}"${item.id === current.id ? ' selected' : ''}>${esc(item.first_name)} ${esc(item.surname)}</option>`).join('');
+  return `<p class="eyebrow">Member handicap information</p><h1>${esc(current.first_name)} ${esc(current.surname)}</h1><section class="section"><label>Viewing player<select id="handicap-viewer-select">${viewerOptions}</select></label></section><section class="index-card"><p class="eyebrow">Current society index</p><div class="index">${index ? Number(index.index_value).toFixed(1) : '—'}</div><p class="index-note">Club handicap: <strong>${club == null ? '—' : Number(club).toFixed(1)}</strong><br>Submitted: ${submitted}</p></section>${qualifyingDifferentialChart(chartRounds, index?.index_value, club)}${hasDisplayOnly ? '<p class="intro">Historic display-only differentials are shown for reference and do not affect the current index.</p>' : ''}<section class="section"><div class="section-head"><h2>Latest rounds</h2><span class="pill">Tap a round</span></div><p class="intro">A <strong>*</strong> marks a differential used in the current society-index calculation.</p>${recent.length ? `<table class="table"><tbody>${recent.slice(0,12).map(item => { const differential = displayedDifferential(item); const used = usedDifferentialIds.has(item.id); return `<tr data-round-id="${item.id}" style="cursor:pointer"><td><strong>${date(item.fixture_date)}</strong><br><span>${esc(item.fixture_name)}${item.score_differential == null && differential != null ? ' · historic' : ''}</span></td><td>${differential == null ? '—' : `${Number(differential).toFixed(1)}${used ? ' <strong class="used-differential" aria-label="Used in current index calculation">*</strong>' : ''}`}</td></tr>`; }).join('')}</tbody></table>` : empty('No rounds available.')}</section>`;
 }
 
 function fixtureCountback(entryId) {
@@ -301,10 +303,20 @@ const handicapWithWinnerCutData = handicap;
 handicap = function(roundId) {
   const page = handicapWithWinnerCutData(roundId);
   if (roundId) return page;
-  const qualifying = entries(player()?.id).filter(item => item.score_differential != null).slice(0, 12);
+  const qualifying = entries(handicapViewer()?.id).filter(item => item.score_differential != null).slice(0, 12);
   const activeWinnerCuts = qualifying.reduce((total, item) => total + Number(item.winner_cut || 0), 0);
   const activeExceptionalReductions = qualifying.reduce((total, item) => total + Number(item.esr_adjustment || 0), 0);
   const winnerCutNote = activeWinnerCuts > 0 ? `−${activeWinnerCuts.toFixed(1)}` : 'None';
   const exceptionalScoreNote = activeExceptionalReductions > 0 ? `−${activeExceptionalReductions.toFixed(1)}` : 'None';
   return page.replace('</div><p class="index-note">', `</div><p class="index-note">Exceptional-score reductions: <strong>${exceptionalScoreNote}</strong><br>Winner cuts applied: <strong>${winnerCutNote}</strong><br>`);
+};
+
+const renderWithHandicapViewer = render;
+render = function() {
+  renderWithHandicapViewer();
+  document.querySelector('#handicap-viewer-select')?.addEventListener('change', event => {
+    state.handicapViewerId = event.target.value;
+    location.hash = '#handicap';
+    render();
+  });
 };
