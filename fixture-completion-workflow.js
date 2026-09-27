@@ -54,7 +54,9 @@
     const holesForCard = holes(course.id);
     const totals = scoreTotals(scores, playing ?? playingFor(fixture, course, playerId), course);
     const hasOfficial = state.entries.some(entry => entry.fixture_id === fixtureId && entry.player_id === playerId);
-    const canPromote = !hasOfficial && !provisionalCandidates(cards, playerId)?.verified;
+    // Only a matching player/marker pair is ready to become the official card.
+    // Previously this was inverted, leaving verified cards with no way to promote them.
+    const canPromote = !hasOfficial && Boolean(provisionalCandidates(cards, playerId)?.verified);
     const action = hasOfficial ? `<button class="secondary" type="button" data-restore-submitted="${playerId}">Restore submitted card</button>` : canPromote ? `<button class="secondary" type="button" data-promote-submitted="${playerId}">Promote to official</button>` : '';
     const cardPlaying = Number(playing ?? playingFor(fixture, course, playerId));
     const pointsAt = (hole, score) => Number.isFinite(cardPlaying) ? Math.max(0, 2 + Number(hole.par) - (Number(score) - (Math.floor(cardPlaying / 18) + (Number(hole.stroke_index) <= cardPlaying % 18 ? 1 : 0)))) : null;
