@@ -188,9 +188,26 @@
     const scores = entryIds.length ? await client.from('hole_scores').select('fixture_entry_id').in('fixture_entry_id', entryIds) : { data: [] };
     const counts = (scores.data || []).reduce((map, item) => map.set(item.fixture_entry_id, (map.get(item.fixture_entry_id) || 0) + 1), new Map());
     const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixtureId).sort((a, b) => `${a.players?.surname}`.localeCompare(`${b.players?.surname}`));
-    const statuses = people.map(item => { const entry = entries.get(item.player_id), complete = entry?.score_status === 'completed' && counts.get(entry.id) === 18, nr = entry?.score_status === 'non_return', verification = provisionalCandidates(pairedCards, item.player_id); return { item, complete, nr, verification, status: complete ? 'Manual' : nr ? 'NR' : verification?.conflict ? 'Unverified' : verification?.verified ? 'Verified' : verification ? 'Submitted' : 'Enter score' }; });
+    const statuses = people.map(item => {
+      const entry = entries.get(item.player_id);
+      const complete = entry?.score_status === 'completed' && counts.get(entry.id) === 18;
+      const nr = entry?.score_status === 'non_return';
+      const playerCard = pairedCards.find(card => card.scorer_player_id === item.player_id);
+      const hasSubmittedOwnCard = playerCard?.own_status === 'submitted';
+      const verification = provisionalCandidates(pairedCards, item.player_id);
+      // The player’s own half is the reliable indication that they pressed
+      // Review & submit. A marker may have submitted their copy first.
+      const status = complete ? 'Manual' : nr ? 'NR' : !hasSubmittedOwnCard
+        ? (playerCard ? 'Not submitted (draft saved)' : 'Not submitted')
+        : verification?.conflict ? 'Submitted — scores differ'
+          : verification?.verified ? 'Verified'
+            : 'Submitted — awaiting marker';
+      return { item, complete, nr, verification, hasSubmittedOwnCard, status };
+    });
     const readyToCommit = statuses.every(item => ['Manual', 'NR', 'Verified'].includes(item.status));
-    list.innerHTML = `<h3>Scorecard checklist</h3>${statuses.map(({ item, complete, nr, verification, status }) => { const rowClass = verification?.conflict ? ' finish-unverified' : ''; const name = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`; const actions = complete ? `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Modify scorecard</button>${verification ? `<button class="secondary" type="button" data-view-submitted="${item.player_id}">View saved submission</button>` : ''}</span>` : verification ? `<button class="secondary" type="button" data-view-submitted="${item.player_id}">View submitted card</button>` : nr ? '' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Input scorecard</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`; return `<div class="finish-check-row${rowClass}"><span class="finish-player-status">${name} <b>–</b> ${status}</span>${actions}</div>`; }).join('')}<div id="submitted-scorecard-preview"></div><p class="finish-commit-note">${readyToCommit ? 'All scorecards meet the acceptance criteria.' : 'Finalize & commit is available once every player is Verified, Manual or NR.'}</p>`;
+    const awaitingSubmission = statuses.filter(item => !item.complete && !item.nr && !item.hasSubmittedOwnCard);
+    const awaitingNames = awaitingSubmission.map(item => esc(displayName(item.item.players))).join(', ');
+    list.innerHTML = `<h3>Scorecard checklist</h3>${awaitingNames ? `<p class="finish-awaiting-submission"><strong>Still to submit:</strong> ${awaitingNames}</p>` : '<p class="finish-ok">Everyone has submitted their own scorecard, or has a manual card / NR.</p>'}${statuses.map(({ item, complete, nr, verification, hasSubmittedOwnCard, status }) => { const rowClass = verification?.conflict ? ' finish-unverified' : !complete && !nr && !hasSubmittedOwnCard ? ' finish-not-submitted' : ''; const name = `${esc(displayName(item.players))}${item.is_guest ? ' (Guest)' : ''}`; const actions = complete ? `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Modify scorecard</button>${verification ? `<button class="secondary" type="button" data-view-submitted="${item.player_id}">View saved submission</button>` : ''}</span>` : verification ? `<button class="secondary" type="button" data-view-submitted="${item.player_id}">View submitted card</button>` : nr ? '' : `<span class="finish-actions"><button class="secondary" type="button" data-finish-score="${item.player_id}">Input scorecard</button><button class="secondary" type="button" data-finish-nr="${item.player_id}">Record NR</button></span>`; return `<div class="finish-check-row${rowClass}"><span class="finish-player-status">${name} <b>–</b> ${status}</span>${actions}</div>`; }).join('')}<div id="submitted-scorecard-preview"></div><p class="finish-commit-note">${readyToCommit ? 'All scorecards meet the acceptance criteria.' : 'Finalize & commit is available once every player is Verified, Manual or NR.'}</p>`;
     const commitButton = document.querySelector('#commit-fixture-form button[type="submit"]');
     if (commitButton) commitButton.disabled = !readyToCommit;
   };

@@ -92,6 +92,9 @@
 .finish-submitted { display: block; margin-top: .18rem; color: var(--muted, #9eb8aa); font-size: .75rem; }
 .finish-player-status { font-size: .93rem; }
 .finish-unverified .finish-player-status { color: #ff8d8d; font-weight: 700; }
+.finish-not-submitted .finish-player-status,
+.finish-awaiting-submission { color: #ffd466; font-weight: 700; }
+.finish-awaiting-submission { margin: .15rem 0 .6rem; font-size: .86rem; }
 .finish-commit-note { margin: .9rem 0 0; font-size: .8rem; color: var(--muted, #9eb8aa); }
 .pcc-field { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .pcc-field input { width: 5.5rem; text-align: right; }
