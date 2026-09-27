@@ -283,10 +283,17 @@ function fixtures(fixtureId) {
 const loadWinnerCutData = load;
 load = async function() {
   await loadWinnerCutData();
-  const { data, error } = await client.from('fixture_entries').select('id, winner_cut');
+  const { data, error } = await client.from('fixture_entries').select('id, winner_cut, esr_adjustment');
   if (error) throw error;
-  const winnerCuts = new Map((data || []).map(item => [item.id, Number(item.winner_cut || 0)]));
-  state.entries = state.entries.map(item => ({ ...item, winner_cut: winnerCuts.get(item.id) || 0 }));
+  const adjustments = new Map((data || []).map(item => [item.id, {
+    winnerCut: Number(item.winner_cut || 0),
+    exceptionalScoreReduction: Number(item.esr_adjustment || 0)
+  }]));
+  state.entries = state.entries.map(item => ({
+    ...item,
+    winner_cut: adjustments.get(item.id)?.winnerCut || 0,
+    esr_adjustment: adjustments.get(item.id)?.exceptionalScoreReduction || 0
+  }));
   render();
 };
 
@@ -294,7 +301,10 @@ const handicapWithWinnerCutData = handicap;
 handicap = function(roundId) {
   const page = handicapWithWinnerCutData(roundId);
   if (roundId) return page;
-  const activeWinnerCuts = entries(player()?.id).filter(item => item.score_differential != null).slice(0, 12).reduce((total, item) => total + Number(item.winner_cut || 0), 0);
+  const qualifying = entries(player()?.id).filter(item => item.score_differential != null).slice(0, 12);
+  const activeWinnerCuts = qualifying.reduce((total, item) => total + Number(item.winner_cut || 0), 0);
+  const activeExceptionalReductions = qualifying.reduce((total, item) => total + Number(item.esr_adjustment || 0), 0);
   const winnerCutNote = activeWinnerCuts > 0 ? `−${activeWinnerCuts.toFixed(1)}` : 'None';
-  return page.replace('</div><p class="index-note">', `</div><p class="index-note">Winner cuts applied: <strong>${winnerCutNote}</strong><br>`);
+  const exceptionalScoreNote = activeExceptionalReductions > 0 ? `−${activeExceptionalReductions.toFixed(1)}` : 'None';
+  return page.replace('</div><p class="index-note">', `</div><p class="index-note">Exceptional-score reductions: <strong>${exceptionalScoreNote}</strong><br>Winner cuts applied: <strong>${winnerCutNote}</strong><br>`);
 };
