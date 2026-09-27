@@ -43,10 +43,15 @@
       }
       return first[0].localeCompare(second[0]);
     });
-    rankedCountback.forEach(([name], index) => {
-      const row = Array.from(card.querySelectorAll('tbody tr')).find(item => String(item.children[isStandalone ? 0 : 1]?.textContent || '').trim() === name);
-      if (row?.children[0]) row.children[0].textContent = String(index + 1);
-    });
+    // The compact standalone card is used when fewer than five cards have
+    // been entered.  Its first column is Player, not Pos, so changing that
+    // cell to a rank erased the player names.
+    if (!isStandalone) {
+      rankedCountback.forEach(([name], index) => {
+        const row = Array.from(card.querySelectorAll('tbody tr')).find(item => String(item.children[1]?.textContent || '').trim() === name);
+        if (row?.children[0]) row.children[0].textContent = String(index + 1);
+      });
+    }
 
   };
 
