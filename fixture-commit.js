@@ -15,6 +15,8 @@
       event.preventDefault();
       if (!window.confirm('Commit this fixture? It will no longer appear in the admin fixture lists.')) return;
       const data = new FormData(event.currentTarget), fixtureId = data.get('fixture_id'), pcc = data.get('playing_conditions_adjustment');
+      const { error: promotionError } = await client.rpc('promote_verified_fixture_scorecards', { p_fixture_id: fixtureId });
+      if (promotionError) return message(promotionError.message, true);
       if (pcc !== null) {
         const { error: finalizeError } = await client.rpc('finalize_fixture_differentials', { p_fixture_id: fixtureId, p_playing_conditions: Number(pcc) });
         if (finalizeError) return message(finalizeError.message, true);
