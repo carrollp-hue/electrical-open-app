@@ -27,6 +27,17 @@
   const complete = values => values.length === 18 && values.every(value => Number.isInteger(value) && value >= 0 && value <= 20);
   const displayName = person => `${person?.first_name || ''} ${person?.surname || ''}`.trim();
   const initialsFor = person => `${person?.first_name?.[0] || ''}${person?.surname?.[0] || ''}`.toUpperCase() || '—';
+  const submissionSummary = (scores, playing, course) => {
+    let shots = 0, points = 0;
+    holes(course.id).forEach((hole, index) => {
+      const entered = Number(scores[index]);
+      const strokes = strokesAt(playing, hole.stroke_index);
+      const effectiveShots = entered === 0 ? Number(hole.par) + 2 + strokes : entered;
+      shots += effectiveShots;
+      points += entered === 0 ? 0 : Math.max(0, 2 + Number(hole.par) - (entered - strokes));
+    });
+    return { shots, points };
+  };
 
   const updateCalculations = () => {
     const summary = document.querySelector('#paired-index-summary');
@@ -162,7 +173,17 @@
     if (!fixture || !course || !current) return;
     const own = scores('own'), marked = scores('marked');
     if (submit && (!active.marked_player_id || !complete(own) || !complete(marked))) return message('Choose Player A and enter all 18 scores for both cards before submitting.', true);
-    if (submit && !window.confirm('Confirm both scorecards with your playing partner before submission. Submitted cards are locked.')) return;
+    if (submit) {
+      const markedPerson = state.memberDirectory.find(person => person.id === active.marked_player_id);
+      const ownPlaying = playingFor(fixture.id, current.id, indexFor(fixture.id, current.id), fixture, course);
+      const markedPlaying = playingFor(fixture.id, active.marked_player_id, indexFor(fixture.id, active.marked_player_id), fixture, course);
+      const ownTotal = submissionSummary(own, ownPlaying, course), markedTotal = submissionSummary(marked, markedPlaying, course);
+      const unusual = [[`${displayName(current)}'s`, own], [displayName(markedPerson), marked]].flatMap(([name, card]) => card.map((score, index) => Number(score) >= 10 ? `${name} hole ${index + 1}: ${score}` : []));
+      const zeroNote = [...own, ...marked].some(score => Number(score) === 0) ? '\n\nA score of 0 is counted as a net double bogey and earns 0 points.' : '';
+      const warning = unusual.length ? `\n\nCHECK UNUSUAL SCORES:\n${unusual.map(item => `• ${item}`).join('\n')}\nThese may be correct, but check them against the scorecard.` : '';
+      const confirmation = `Please check before submitting:\n\nYour score: ${ownTotal.shots} shots · ${ownTotal.points} Stableford points\nPlayer A — ${displayName(markedPerson)}: ${markedTotal.shots} shots · ${markedTotal.points} Stableford points${warning}${zeroNote}\n\nSubmitted scorecards are locked.`;
+      if (!window.confirm(confirmation)) return;
+    }
     const ownIndex = indexFor(fixture.id, current.id), markedIndex = active.marked_player_id && indexFor(fixture.id, active.marked_player_id);
     const payload = { fixture_id: fixture.id, scorer_player_id: current.id, marked_player_id: active.marked_player_id, own_scores: own, marked_scores: marked, own_handicap_index: ownIndex, own_course_handicap: ownIndex == null ? null : courseHandicapFor(ownIndex, course), own_playing_handicap: ownIndex == null ? null : playingFor(fixture.id, current.id, ownIndex, fixture, course), marked_handicap_index: markedIndex, marked_course_handicap: markedIndex == null ? null : courseHandicapFor(markedIndex, course), marked_playing_handicap: markedIndex == null ? null : playingFor(fixture.id, active.marked_player_id, markedIndex, fixture, course), own_status: submit ? 'submitted' : active.own_status, marked_status: submit ? 'submitted' : active.marked_status };
     const { data, error } = await client.from('member_scorecards').upsert(payload, { onConflict: 'fixture_id,scorer_player_id' }).select().single();
