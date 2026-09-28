@@ -14,7 +14,10 @@ handicap = function (roundId) {
   const page = electricalOpenHandicapWithClubReminder(roundId);
   if (roundId) return page;
 
-  const current = player();
+  // The Handicap page can display another member.  Only the player linked to
+  // the signed-in account may see the club-handicap editor.
+  const current = handicapViewer();
+  const signedInPlayer = state.memberDirectory?.find(item => item.profile_id === session?.user?.id);
   const detail = (state.handicapDetails || []).find(item => item.player_id === current?.id);
   const club = current?.club_handicap;
   const submittedAt = current?.club_handicap_submitted_at ? new Date(current.club_handicap_submitted_at) : null;
@@ -31,7 +34,7 @@ handicap = function (roundId) {
       return fixtureDate >= today && fixtureDate <= threeDaysFromToday;
     })
     .sort((a, b) => a.fixture_date.localeCompare(b.fixture_date))[0];
-  const isOwnProfile = current?.profile_id === session?.user?.id;
+  const isOwnProfile = current?.id === signedInPlayer?.id;
   const reminderDue = submittedAt
     && isOwnProfile
     && Date.now() - submittedAt.getTime() >= 30 * 24 * 60 * 60 * 1000
