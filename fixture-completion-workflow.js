@@ -17,7 +17,8 @@
     card.forEach((hole, index) => {
       const shot = Number(scores[index]);
       const strokes = Math.floor(playing / 18) + (Number(hole.stroke_index) <= playing % 18 ? 1 : 0);
-      gross += shot; nett += shot - strokes; points += Math.max(0, 2 + Number(hole.par) - (shot - strokes));
+      const effectiveShot = shot === 0 ? Number(hole.par) + 2 + strokes : shot;
+      gross += effectiveShot; nett += effectiveShot - strokes; points += shot === 0 ? 0 : Math.max(0, 2 + Number(hole.par) - (shot - strokes));
     });
     return { gross, nett, points };
   };

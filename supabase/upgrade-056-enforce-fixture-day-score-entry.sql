@@ -43,14 +43,14 @@ begin
   end if;
   if new.own_status = 'submitted' and exists (
     select 1 from jsonb_array_elements_text(new.own_scores) as score(value)
-    where score.value is null or score.value !~ '^(?:[1-9]|1[0-9]|20)$'
+    where score.value is null or score.value !~ '^(?:0|[1-9]|1[0-9]|20)$'
   ) then raise exception 'Your scorecard contains an invalid hole score'; end if;
   if new.marked_status = 'submitted' and (new.marked_player_id is null or jsonb_typeof(new.marked_scores) <> 'array' or jsonb_array_length(new.marked_scores) <> 18) then
     raise exception 'Choose Player A and enter all 18 scores before submitting';
   end if;
   if new.marked_status = 'submitted' and exists (
     select 1 from jsonb_array_elements_text(new.marked_scores) as score(value)
-    where score.value is null or score.value !~ '^(?:[1-9]|1[0-9]|20)$'
+    where score.value is null or score.value !~ '^(?:0|[1-9]|1[0-9]|20)$'
   ) then raise exception 'Player A scorecard contains an invalid hole score'; end if;
   if TG_OP = 'UPDATE' and not public.is_staff() then
     if old.own_status = 'submitted' and (new.own_scores is distinct from old.own_scores or new.own_status is distinct from old.own_status) then
