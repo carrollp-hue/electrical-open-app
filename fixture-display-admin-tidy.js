@@ -117,7 +117,13 @@
     button.type = 'button'; button.className = 'secondary fixture-override-toggle'; heading.append(' ', button);
     const setCollapsed = collapsed => { content.forEach(item => { item.hidden = collapsed; }); button.textContent = collapsed ? 'Expand' : 'Minimise'; button.setAttribute('aria-expanded', String(!collapsed)); };
     setCollapsed(true);
-    button.addEventListener('click', () => setCollapsed(button.getAttribute('aria-expanded') !== 'true'));
+    // Use the element's direct click handler.  The participants page is
+    // re-rendered by several enhancement scripts, and delegated handlers can
+    // be detached while this card remains visible.
+    button.onclick = event => {
+      event.preventDefault();
+      setCollapsed(button.getAttribute('aria-expanded') !== 'true');
+    };
     const message = card.parentElement?.querySelector('#admin-message');
     if (message) card.parentElement.insertBefore(card, message);
   };
