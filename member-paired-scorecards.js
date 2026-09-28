@@ -1,6 +1,11 @@
 (() => {
   let active = null, saveTimer, activeAssignments = [];
   const fixtureFor = id => state.fixtures.find(item => item.id === id);
+  const londonDate = () => {
+    const values = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+  const scoreEntryOpen = fixture => fixture?.member_scoring_enabled && (!fixture.score_entry_day_only || fixture.fixture_date === londonDate());
   const participant = (fixtureId, playerId) => (state.fixtureParticipants || []).find(item => item.fixture_id === fixtureId && item.player_id === playerId);
   const nearestHandicap = value => value < 0 ? Math.ceil(value - .5) : Math.floor(value + .5);
   const courseHandicapFor = (index, course) => nearestHandicap((Number(index) * Number(course.slope_rating) / 113) + Number(course.course_rating) - Number(course.par));
@@ -187,7 +192,7 @@
   const originalFixtures = fixtures;
   fixtures = function (fixtureId) {
     const markup = originalFixtures(fixtureId), fixture = fixtureFor(fixtureId), current = player(), course = fixture && setup(fixture.course_setup_id);
-    const eligible = fixture?.member_scoring_enabled && current && participant(fixture.id, current.id) && course && holes(course.id).length === 18;
+    const eligible = scoreEntryOpen(fixture) && current && participant(fixture.id, current.id) && course && holes(course.id).length === 18;
     return eligible ? `${markup}<section class="section member-scorecard-entry"><h2>Enter your paired scorecard</h2><p>Record your own score and Player A’s score on the same card.</p><button class="primary" type="button" data-open-paired-scorecard="${fixture.id}">Open scorecard</button></section>` : markup;
   };
   document.addEventListener('click', event => { const button = event.target.closest('[data-open-paired-scorecard]'); if (button) location.hash = `#scorecard/${button.dataset.openPairedScorecard}`; });
@@ -195,7 +200,7 @@
     const panel = document.querySelector('#app .admin-panel');
     if (!state.isStaff || location.hash !== '#admin/scores' || !panel || document.querySelector('#member-scoring-control')) return;
     const options = state.fixtures.filter(fixture => !['completed', 'published', 'archived'].includes(fixture.status)).map(fixture => `<option value="${fixture.id}">${date(fixture.fixture_date)} · ${esc(fixture.name)}${fixture.member_scoring_enabled ? ' (enabled)' : ''}</option>`).join('');
-    panel.insertAdjacentHTML('afterbegin', `<div class="admin-card" id="member-scoring-control"><h2>Member paired scorecards</h2><p>Enable this only after the fixture participants, tee, and 18-hole scorecard are ready. Members can then save drafts and submit their own card plus Player A’s card.</p><form class="admin-form" id="member-scoring-form"><label>Fixture<select name="fixture_id" required><option value="">Select fixture</option>${options}</select></label><label class="checkbox-label"><input name="enabled" type="checkbox"> Enable member score entry</label><button class="secondary" type="submit">Save member scorecard setting</button></form></div>`);
+    panel.insertAdjacentHTML('afterbegin', `<div class="admin-card" id="member-scoring-control"><h2>Member paired scorecards</h2><p>Enable this only after the fixture participants, tee, and 18-hole scorecard are ready. Members can save drafts and submit their own card plus Player A’s card on the fixture date only.</p><form class="admin-form" id="member-scoring-form"><label>Fixture<select name="fixture_id" required><option value="">Select fixture</option>${options}</select></label><label class="checkbox-label"><input name="enabled" type="checkbox"> Enable member score entry</label><button class="secondary" type="submit">Save member scorecard setting</button></form></div>`);
     document.querySelector('#member-scoring-form')?.addEventListener('submit', async event => {
       event.preventDefault();
       const form = new FormData(event.currentTarget), fixtureId = form.get('fixture_id'), enabled = form.get('enabled') === 'on';
@@ -236,13 +241,13 @@
   const refreshAdminControls = () => { addAdminControl(); addReopenControl(); };
   new MutationObserver(refreshAdminControls).observe(document.querySelector('#app'), { childList: true, subtree: true });
   const originalLoad = load;
-  load = async function () { await originalLoad(); const { data, error } = await client.from('fixtures').select('id, member_scoring_enabled'); if (!error) { const enabled = new Map((data || []).map(item => [item.id, item.member_scoring_enabled])); state.fixtures.forEach(fixture => { fixture.member_scoring_enabled = Boolean(enabled.get(fixture.id)); }); render(); refreshAdminControls(); } };
+  load = async function () { await originalLoad(); const { data, error } = await client.from('fixtures').select('id, member_scoring_enabled, score_entry_day_only'); if (!error) { const settings = new Map((data || []).map(item => [item.id, item])); state.fixtures.forEach(fixture => { const setting = settings.get(fixture.id); fixture.member_scoring_enabled = Boolean(setting?.member_scoring_enabled); fixture.score_entry_day_only = Boolean(setting?.score_entry_day_only); }); render(); refreshAdminControls(); } };
   const originalRender = render;
   render = function () {
     if ((location.hash || '#home').startsWith('#scorecard')) {
       const current = player();
       const requestedId = location.hash.split('/')[1];
-      const eligible = state.fixtures.filter(item => item.member_scoring_enabled && current && participant(item.id, current.id));
+      const eligible = state.fixtures.filter(item => scoreEntryOpen(item) && current && participant(item.id, current.id));
       // Result-table links use a fixture-entry ID, whereas member scoring uses a
       // fixture ID.  Leave official scorecard links to the read-only renderer.
       if (requestedId && !eligible.some(item => item.id === requestedId)) {
