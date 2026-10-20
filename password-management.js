@@ -16,6 +16,8 @@
   let requiresProfileClear = false;
   let resetEmail = '';
   let verificationType = 'recovery';
+  let submitting = false;
+  let passwordCompleted = false;
 
   const setMessage = (text, error = false) => {
     message.textContent = text;
@@ -23,6 +25,7 @@
   };
   const isRecoveryLink = () => new URLSearchParams(location.search).get('reset-password') === 'true' || /(?:^|[&#])type=(?:recovery|invite)(?:&|$)/.test(location.hash);
   const show = (nextMode, mustChange = false) => {
+    if (nextMode === 'reset' || nextMode === 'invite') passwordCompleted = false;
     mode = nextMode;
     forced = mustChange;
     form.reset();
@@ -54,17 +57,19 @@
     document.querySelector('#set-up-invited-account').addEventListener('click', () => show('invite'));
   };
   const checkForcedChange = async () => {
+    if (submitting || passwordCompleted) return;
     const { data: { user } } = await client.auth.getUser();
     if (!user) return;
     const { data: profile } = await client.from('profiles').select('password_change_required').eq('id', user.id).maybeSingle();
+    if (submitting || passwordCompleted) return;
     // Invitation links also arrive with a recovery-style URL. Keep the flag
     // so saving the first password clears it instead of reopening this dialog.
     requiresProfileClear = Boolean(profile?.password_change_required);
-    if (isRecoveryLink() || requiresProfileClear) show('change', true);
+    if ((isRecoveryLink() || requiresProfileClear) && !(dialog.open && mode === 'change')) show('change', true);
   };
   window.electricalOpenPasswordRecovery = () => {
     sessionStorage.removeItem('electricalOpenPasswordRecovery');
-    show('change', true);
+    if (!submitting && !(dialog.open && mode === 'change')) show('change', true);
   };
 
   document.querySelector('#password-close')?.addEventListener('click', () => {
@@ -76,6 +81,7 @@
   form.addEventListener('submit', async event => {
     event.preventDefault();
     submit.disabled = true;
+    submitting = true;
     try {
       if (mode === 'reset') {
         resetEmail = email.value.trim();
@@ -96,6 +102,12 @@
       }
       if (password.value.length < 6) throw new Error('Use at least 6 characters for your password.');
       if (password.value !== confirm.value) throw new Error('The passwords do not match.');
+      const { data: { user: currentUser }, error: userError } = await client.auth.getUser();
+      if (userError) throw userError;
+      if (!currentUser) throw new Error('Your session has expired. Please request a new code and try again.');
+      const { data: currentProfile, error: readProfileError } = await client.from('profiles').select('password_change_required').eq('id', currentUser.id).maybeSingle();
+      if (readProfileError) throw readProfileError;
+      requiresProfileClear = Boolean(currentProfile?.password_change_required);
       const { error } = await client.auth.updateUser({ password: password.value });
       if (error) throw error;
       const { data: { user } } = await client.auth.getUser();
@@ -104,6 +116,7 @@
         if (profileError) throw profileError;
       }
       history.replaceState(null, '', `${location.pathname}${location.search}`);
+      passwordCompleted = true;
       dialog.close();
       forced = false;
       requiresProfileClear = false;
@@ -111,6 +124,7 @@
     } catch (error) {
       setMessage(error.message || 'Could not update your password.', true);
     } finally {
+      submitting = false;
       submit.disabled = false;
     }
   });
@@ -123,6 +137,6 @@
   } else checkForcedChange();
   client.auth.onAuthStateChange((event, nextSession) => {
     if (event === 'PASSWORD_RECOVERY') window.electricalOpenPasswordRecovery();
-    else if (nextSession) checkForcedChange();
+    else if (nextSession) setTimeout(() => checkForcedChange().catch(() => {}), 0);
   });
 })();
