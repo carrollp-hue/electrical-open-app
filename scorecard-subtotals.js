@@ -44,10 +44,11 @@
       }));
       const scored = entered.filter(item => item.gross != null);
       const totals = scored.reduce((result, item) => {
-        const nett = item.gross - handicapStrokes(playingHandicap, item.hole.stroke_index);
-        result.gross += item.gross;
-        result.nett += nett;
-        result.points += Math.max(0, 2 + item.hole.par - nett);
+        const calculated = window.electricalOpenScorecardZero.holeScore(item.gross, item.hole, playingHandicap);
+        if (!calculated) return result;
+        result.gross += calculated.gross;
+        result.nett += calculated.nett;
+        result.points += calculated.points;
         return result;
       }, { gross: 0, nett: 0, points: 0 });
       set(section, 'par', sectionHoles.reduce((sum, hole) => sum + Number(hole.par), 0));

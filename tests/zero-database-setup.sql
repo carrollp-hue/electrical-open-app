@@ -1,0 +1,15 @@
+do $$ begin if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated; end if; end $$;
+create function public.is_staff() returns boolean language sql as $$select true$$;
+create table public.course_setups (id uuid primary key, course_rating numeric, slope_rating integer, par integer);
+create table public.fixtures (id uuid primary key, course_setup_id uuid, handicap_allowance numeric);
+create table public.course_holes (course_setup_id uuid, hole_number integer, par integer, stroke_index integer);
+create table public.fixture_participants (fixture_id uuid, player_id uuid);
+create table public.member_scorecards (fixture_id uuid, scorer_player_id uuid, marked_player_id uuid, own_status text, marked_status text, own_scores jsonb, marked_scores jsonb, own_handicap_index numeric, own_course_handicap integer, own_playing_handicap integer);
+create table public.fixture_entries (id uuid primary key default gen_random_uuid(), fixture_id uuid, player_id uuid, handicap_index_at_entry numeric, course_handicap integer, playing_handicap integer, gross_score integer, nett_score integer, stableford_points integer, adjusted_gross_score integer, score_differential numeric, order_of_merit_points integer, esr_adjustment integer, winner_cut integer, score_status text);
+create table public.hole_scores (fixture_entry_id uuid, hole_number integer, gross_score integer, handicap_strokes integer, nett_score integer, stableford_points integer);
+insert into public.course_setups values ('00000000-0000-0000-0000-000000000001', 72, 113, 72);
+insert into public.fixtures values ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 1);
+insert into public.course_holes select '00000000-0000-0000-0000-000000000001', n, 4, n from generate_series(1,18) n;
+insert into public.fixture_participants values ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003');
+insert into public.member_scorecards (fixture_id, scorer_player_id, own_status, own_scores, own_handicap_index, own_course_handicap, own_playing_handicap) values ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003', 'submitted', (select jsonb_agg(case when n=15 then 7 else 4 end order by n) from generate_series(1,18) n), 36, 36, 28);
+insert into public.member_scorecards (fixture_id, scorer_player_id, marked_player_id, marked_status, marked_scores) values ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 'submitted', (select jsonb_agg(case when n=15 then 0 else 4 end order by n) from generate_series(1,18) n));

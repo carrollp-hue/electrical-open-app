@@ -57,8 +57,8 @@
         const markedPoints = marked == null || markedPlaying == null ? null : marked === 0 ? 0 : Math.max(0, 2 + Number(hole.par) - (marked - strokesAt(markedPlaying, hole.stroke_index)));
         const half = index < 9 ? totals.out : totals.in;
         half.par += Number(hole.par);
-        if (own != null) { half.ownShots += own; half.ownPoints += ownPoints || 0; half.ownEntered = true; }
-        if (marked != null) { half.markedShots += marked; half.markedPoints += markedPoints || 0; half.markedEntered = true; }
+        if (own != null) { half.ownShots += own === 0 && ownPlaying != null ? Number(hole.par) + 2 + strokesAt(ownPlaying, hole.stroke_index) : own; half.ownPoints += ownPoints || 0; half.ownEntered = true; }
+        if (marked != null) { half.markedShots += marked === 0 && markedPlaying != null ? Number(hole.par) + 2 + strokesAt(markedPlaying, hole.stroke_index) : marked; half.markedPoints += markedPoints || 0; half.markedEntered = true; }
         const ownCell = document.querySelector(`[data-paired-points="own-${index + 1}"]`), markedCell = document.querySelector(`[data-paired-points="marked-${index + 1}"]`);
         if (ownCell) ownCell.textContent = ownPoints ?? '—';
         if (markedCell) markedCell.textContent = markedPoints ?? '—';
@@ -90,13 +90,16 @@
     }
   };
 
-  const differences = (first = [], second = []) => first.length === 18 && second.length === 18 ? first.map((value, index) => Number(value) === Number(second[index]) ? null : index + 1).filter(Boolean) : [];
+  const differences = (first, second, playing) => {
+    const fixture = fixtureFor(active?.fixture_id), course = setup(fixture?.course_setup_id);
+    return window.electricalOpenScorecardZero.differences(first, second, course ? holes(course.id) : [], playing) ?? Array.from({ length: 18 }, (_, index) => index + 1);
+  };
   const compare = async () => {
     const target = document.querySelector('#paired-verification'), current = player();
     if (!target || !active?.fixture_id || !current) return;
     const note = document.querySelector('#paired-comparison');
     if (note) { note.className = 'paired-comparison'; note.textContent = 'Verification compares submitted own scores with any submitted card that marks that player.'; }
-    const { data, error } = await client.from('member_scorecards').select('scorer_player_id, marked_player_id, own_scores, marked_scores, own_status, marked_status').eq('fixture_id', active.fixture_id);
+    const { data, error } = await client.from('member_scorecards').select('scorer_player_id, marked_player_id, own_scores, marked_scores, own_status, marked_status, own_playing_handicap, marked_playing_handicap').eq('fixture_id', active.fixture_id);
     if (error) return void (target.innerHTML = '<h3>Scorecard verification</h3><p>Verification is unavailable at the moment.</p>');
     const cards = data || [], nameOf = playerId => displayName(state.memberDirectory.find(person => person.id === playerId));
     const ownMarkers = cards.filter(card => card.marked_player_id === current.id && card.marked_status === 'submitted');
@@ -104,7 +107,7 @@
     if (active.own_status !== 'submitted') ownStatus = '<li><strong>Your card:</strong> still a draft.</li>';
     else if (!ownMarkers.length) ownStatus = '<li><strong>Your card:</strong> waiting for another player to submit a card marking you.</li>';
     else {
-      const conflicts = ownMarkers.flatMap(card => differences(active.own_scores, card.marked_scores).map(hole => ({ hole, marker: nameOf(card.scorer_player_id) })));
+      const conflicts = ownMarkers.flatMap(card => differences(active.own_scores, card.marked_scores, active.own_playing_handicap ?? card.marked_playing_handicap).map(hole => ({ hole, marker: nameOf(card.scorer_player_id) })));
       ownStatus = conflicts.length
         ? `<li class="paired-difference"><strong>Your card: check required.</strong> ${conflicts.map(item => `Hole ${item.hole} (${esc(item.marker)})`).join(', ')}.</li>`
         : `<li class="paired-match"><strong>Your card: verified.</strong> Matches ${ownMarkers.map(card => esc(nameOf(card.scorer_player_id))).join(' and ')}.</li>`;
@@ -116,7 +119,7 @@
       if (active.marked_status !== 'submitted') markedStatus = `<li><strong>${markedName}:</strong> enter and submit the marked scores first.</li>`;
       else if (!markedOwnCard) markedStatus = `<li><strong>${markedName}:</strong> waiting for their own scorecard.</li>`;
       else {
-        const conflictHoles = differences(active.marked_scores, markedOwnCard.own_scores);
+        const conflictHoles = differences(active.marked_scores, markedOwnCard.own_scores, markedOwnCard.own_playing_handicap ?? active.marked_playing_handicap);
         markedStatus = conflictHoles.length
           ? `<li class="paired-difference"><strong>${markedName}: check required.</strong> Scores differ on hole${conflictHoles.length === 1 ? '' : 's'} ${conflictHoles.join(', ')}.</li>`
           : `<li class="paired-match"><strong>${markedName}: verified.</strong> Your marked card matches their own submitted card.</li>`;

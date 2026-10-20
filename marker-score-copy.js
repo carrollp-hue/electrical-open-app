@@ -48,7 +48,7 @@
           const scores = choices[Number(select.value)]?.marked_scores;
           const inputs = Array.from({ length: 18 }, (_, index) => fields.querySelector(`[name="gross_${index + 1}"]`));
           if (!scores || inputs.some(input => !input)) { output.textContent = 'The manual scorecard is not ready. Check the course and player, then try again.'; return; }
-          if (scores.some(score => Number(score) === 0)) { output.textContent = 'This card contains a 0 for a picked-up hole. The manual scorecard cannot safely copy it yet; ask an administrator to check the score before entering it.'; return; }
+          if (scores.some(score => Number(score) === 0) && fields.dataset.provisional === 'true') { output.textContent = 'A picked-up hole needs an established playing handicap. This assessment card cannot be copied automatically.'; return; }
           if (inputs.some(input => input.value !== '') && !window.confirm('Replace the scores currently entered in the manual scorecard? Nothing has been saved yet.')) return;
           inputs.forEach((input, index) => { input.value = String(scores[index]); input.dispatchEvent(new Event('input', { bubbles: true })); });
           output.textContent = 'Scores copied. Check every hole and the totals, then use Confirm and save scorecard when ready.';

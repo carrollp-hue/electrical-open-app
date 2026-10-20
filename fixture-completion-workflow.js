@@ -1,5 +1,5 @@
 (() => {
-  const sameScores = (first, second) => Array.isArray(first) && Array.isArray(second) && first.length === 18 && second.length === 18 && first.every((value, index) => Number(value) === Number(second[index]));
+  const sameScores = (first, second, cardHoles, playing) => window.electricalOpenScorecardZero.differences(first, second, cardHoles, playing)?.length === 0;
   const displayName = person => `${person?.first_name || ''} ${person?.surname || ''}`.trim() || 'Unknown player';
   const participantFor = (fixtureId, playerId) => (state.fixtureParticipants || []).find(item => item.fixture_id === fixtureId && item.player_id === playerId);
   const nearest = value => value < 0 ? Math.ceil(value - .5) : Math.floor(value + .5);
@@ -24,15 +24,18 @@
   };
   const currentFixtureId = () => (location.hash.match(/^#fixtures\/([^/]+)/) || [])[1];
 
-  const provisionalCandidates = (cards, playerId) => {
+  const provisionalCandidates = (cards, playerId, fixtureId) => {
     const own = cards.find(card => card.scorer_player_id === playerId && card.own_status === 'submitted');
     const markers = cards.filter(card => card.marked_player_id === playerId && card.marked_status === 'submitted');
     const ownCandidate = own && { scores: own.own_scores, playing: own.own_playing_handicap, source: 'own' };
     const markerCandidates = markers.map(card => ({ scores: card.marked_scores, playing: card.marked_playing_handicap, source: 'marker' }));
+    const fixture = state.fixtures.find(item => item.id === fixtureId), course = setup(fixture?.course_setup_id);
+    const cardHoles = course ? holes(course.id) : [];
+    const comparisonPlaying = ownCandidate?.playing ?? markerCandidates[0]?.playing ?? null;
     if (!ownCandidate && !markerCandidates.length) return null;
-    if (!ownCandidate) return { ...markerCandidates[0], verified: false, conflict: markerCandidates.some(item => !sameScores(item.scores, markerCandidates[0].scores)), note: 'Awaiting player card' };
+    if (!ownCandidate) return { ...markerCandidates[0], verified: false, conflict: markerCandidates.some(item => !sameScores(item.scores, markerCandidates[0].scores, cardHoles, comparisonPlaying)), note: 'Awaiting player card' };
     if (!markerCandidates.length) return { ...ownCandidate, verified: false, conflict: false, note: 'Awaiting marker' };
-    const conflict = markerCandidates.some(item => !sameScores(item.scores, ownCandidate.scores));
+    const conflict = markerCandidates.some(item => !sameScores(item.scores, ownCandidate.scores, cardHoles, comparisonPlaying));
     if (conflict) return { ...markerCandidates[0], verified: false, conflict: true, note: 'Scores differ' };
     return { ...ownCandidate, verified: true, conflict: false, note: 'Verified' };
   };
@@ -57,11 +60,12 @@
     const hasOfficial = state.entries.some(entry => entry.fixture_id === fixtureId && entry.player_id === playerId);
     // Only a matching player/marker pair is ready to become the official card.
     // Previously this was inverted, leaving verified cards with no way to promote them.
-    const canPromote = !hasOfficial && Boolean(provisionalCandidates(cards, playerId)?.verified);
+    const canPromote = !hasOfficial && Boolean(provisionalCandidates(cards, playerId, fixtureId)?.verified);
     const action = hasOfficial ? `<button class="secondary" type="button" data-restore-submitted="${playerId}">Restore submitted card</button>` : canPromote ? `<button class="secondary" type="button" data-promote-submitted="${playerId}">Promote to official</button>` : '';
-    const cardPlaying = Number(playing ?? playingFor(fixture, course, playerId));
-    const pointsAt = (hole, score) => Number.isFinite(cardPlaying) ? Math.max(0, 2 + Number(hole.par) - (Number(score) - (Math.floor(cardPlaying / 18) + (Number(hole.stroke_index) <= cardPlaying % 18 ? 1 : 0)))) : null;
-    const subtotal = (label, from, to) => { const selected = holesForCard.slice(from, to); const gross = selected.reduce((sum, hole, offset) => sum + Number(scores[from + offset]), 0); const points = selected.reduce((sum, hole, offset) => sum + Number(pointsAt(hole, scores[from + offset]) || 0), 0); return `<tr class="submitted-scorecard-subtotal"><td><strong>${label}</strong></td><td>${selected.reduce((sum, hole) => sum + Number(hole.par), 0)}</td><td></td><td><strong>${gross}</strong></td><td><strong>${Number.isFinite(cardPlaying) ? points : '—'}</strong></td></tr>`; };
+    const playingValue = playing ?? playingFor(fixture, course, playerId);
+    const cardPlaying = playingValue == null ? NaN : Number(playingValue);
+    const pointsAt = (hole, score) => Number.isFinite(cardPlaying) ? Number(score) === 0 ? 0 : Math.max(0, 2 + Number(hole.par) - (Number(score) - window.electricalOpenScorecardZero.strokes(cardPlaying, Number(hole.stroke_index)))) : null;
+    const subtotal = (label, from, to) => { const selected = holesForCard.slice(from, to); const gross = selected.reduce((sum, hole, offset) => { const score = Number(scores[from + offset]); return sum + (score === 0 && Number.isFinite(cardPlaying) ? Number(hole.par) + 2 + window.electricalOpenScorecardZero.strokes(cardPlaying, Number(hole.stroke_index)) : score); }, 0); const points = selected.reduce((sum, hole, offset) => sum + Number(pointsAt(hole, scores[from + offset]) || 0), 0); return `<tr class="submitted-scorecard-subtotal"><td><strong>${label}</strong></td><td>${selected.reduce((sum, hole) => sum + Number(hole.par), 0)}</td><td></td><td><strong>${gross}</strong></td><td><strong>${Number.isFinite(cardPlaying) ? points : '—'}</strong></td></tr>`; };
     const scoreRows = holesForCard.map((hole, index) => `<tr><td>${hole.hole_number}</td><td>${hole.par}</td><td>${hole.stroke_index}</td><td><strong>${Number(scores[index])}</strong></td><td>${pointsAt(hole, scores[index]) ?? '—'}</td></tr>${index === 8 ? subtotal('Out', 0, 9) : index === 17 ? subtotal('In', 9, 18) : ''}`).join('');
     target.innerHTML = `<div class="section-head"><h4>${esc(displayName(person))} – submitted scorecard</h4>${action}</div><p class="intro">${own ? 'Player-submitted card' : 'Marker-submitted card'} · Playing handicap ${playing ?? '—'}</p><div class="table-responsive"><table class="table submitted-scorecard-table"><thead><tr><th>Hole</th><th>Par</th><th>SI</th><th>Gross</th><th>Pts</th></tr></thead><tbody>${scoreRows}<tr class="submitted-scorecard-total"><td><strong>Total</strong></td><td><strong>${holesForCard.reduce((sum, hole) => sum + Number(hole.par), 0)}</strong></td><td></td><td><strong>${totals?.gross ?? '—'}</strong></td><td><strong>${totals?.points ?? '—'}</strong></td></tr></tbody></table></div><p class="intro">${hasOfficial ? 'Check this saved submission before restoring it over the official scorecard.' : 'Check this against the player’s card, then promote it to create the official record.'}</p>`;
   };
@@ -102,7 +106,7 @@
     if (error) return;
     const people = (state.fixtureParticipants || []).filter(item => item.fixture_id === fixtureId).map(item => {
       const entry = state.entries.find(itemEntry => itemEntry.fixture_id === fixtureId && itemEntry.player_id === item.player_id);
-      const provisional = entry ? null : provisionalCandidates(cards || [], item.player_id);
+      const provisional = entry ? null : provisionalCandidates(cards || [], item.player_id, fixtureId);
       const totals = provisional && scoreTotals(provisional.scores, provisional.playing ?? playingFor(fixture, course, item.player_id), course);
       return { ...item, entry, provisional, totals };
     });
@@ -195,7 +199,7 @@
       const nr = entry?.score_status === 'non_return';
       const playerCard = pairedCards.find(card => card.scorer_player_id === item.player_id);
       const hasSubmittedOwnCard = playerCard?.own_status === 'submitted';
-      const verification = provisionalCandidates(pairedCards, item.player_id);
+      const verification = provisionalCandidates(pairedCards, item.player_id, fixtureId);
       // The player’s own half is the reliable indication that they pressed
       // Review & submit. A marker may have submitted their copy first.
       const status = complete ? 'Manual' : nr ? 'NR' : !hasSubmittedOwnCard
