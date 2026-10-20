@@ -58,9 +58,8 @@
     const holesForCard = holes(course.id);
     const totals = scoreTotals(scores, playing ?? playingFor(fixture, course, playerId), course);
     const hasOfficial = state.entries.some(entry => entry.fixture_id === fixtureId && entry.player_id === playerId);
-    // Only a matching player/marker pair is ready to become the official card.
-    // Previously this was inverted, leaving verified cards with no way to promote them.
-    const canPromote = !hasOfficial && Boolean(provisionalCandidates(cards, playerId, fixtureId)?.verified);
+    // Admins may explicitly approve an unmatched submission after checking it.
+    const canPromote = !hasOfficial && state.isAdmin;
     const action = hasOfficial ? `<button class="secondary" type="button" data-restore-submitted="${playerId}">Restore submitted card</button>` : canPromote ? `<button class="secondary" type="button" data-promote-submitted="${playerId}">Promote to official</button>` : '';
     const playingValue = playing ?? playingFor(fixture, course, playerId);
     const cardPlaying = playingValue == null ? NaN : Number(playingValue);
@@ -81,9 +80,6 @@
     const marker = cards.find(card => card.marked_player_id === playerId && card.marked_status === 'submitted');
     const scores = own ? own.own_scores : marker?.marked_scores;
     if (!Array.isArray(scores) || scores.length !== 18) return message('No complete submitted scorecard is available to promote.', true);
-    const action = restoring ? 'Restore' : 'Promote';
-    const warning = restoring ? 'This replaces the current official hole scores with the saved submitted card.' : 'Check that it is correct before continuing.';
-    if (!window.confirm(`${action} ${displayName(person)}’s submitted card ${restoring ? 'over' : 'to'} the official scorecard? ${warning}`)) return;
     const form = document.querySelector('#scorecard-form'), fixtureSelect = document.querySelector('#scorecard-fixture'), playerSelect = document.querySelector('#scorecard-player');
     if (!form || !fixtureSelect || !playerSelect) return message('The official scorecard form is not available.', true);
     fixtureSelect.value = fixtureId;
@@ -94,6 +90,15 @@
     await new Promise(resolve => setTimeout(resolve, 0));
     const fields = document.querySelector('#scorecard-fields');
     if (!fields || ![...fields.querySelectorAll('input[name^="gross_"]')].length) return message('The official scorecard fields could not be prepared.', true);
+    const playing = Number(fields.dataset.playingHandicap);
+    const totals = fields.dataset.playingHandicap !== undefined && Number.isFinite(playing) ? scoreTotals(scores, playing, course) : null;
+    if (!totals || scores.some(score => score === null || score === '' || !Number.isInteger(Number(score)) || Number(score) < 0)) return message('The scorecard totals could not be calculated. Check the scores and playing handicap.', true);
+    const comparison = provisionalCandidates(cards, playerId, fixtureId);
+    const verification = comparison?.verified ? 'Player and marker cards match.' : comparison?.conflict ? 'Warning: submitted cards differ; this uses the player’s submitted card.' : 'Warning: this card has not been matched with a submitted marker card.';
+    const action = restoring ? 'Restore' : 'Promote';
+    const warning = restoring ? 'This replaces the current official scorecard.' : 'Please check the card before making it official.';
+    const zeroNote = scores.some(score => Number(score) === 0) ? '\nGross includes net double bogey for holes entered as 0.' : '';
+    if (!window.confirm(`${action} ${displayName(person)}’s submitted scorecard?\n\nGross strokes: ${totals.gross}\nStableford points: ${totals.points}${zeroNote}\n\n${verification}\n${warning}`)) return;
     scores.forEach((score, index) => { const input = fields.querySelector(`[name="gross_${index + 1}"]`); if (input) { input.value = Number(score); input.dispatchEvent(new Event('input')); } });
     await saveScorecard({ preventDefault() {}, currentTarget: form });
   };
