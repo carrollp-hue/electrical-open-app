@@ -1,0 +1,23 @@
+name: Deploy zero score database functions
+on:
+  push:
+    branches: [main]
+    paths: [supabase/upgrade-058-zero-score-matching.sql]
+permissions:
+  contents: read
+jobs:
+  deploy:
+    if: "startsWith(github.event.head_commit.message, 'Deploy zero score database functions')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply function update in one transaction
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "$PGPASSWORD"
+          docker run --rm -e PGPASSWORD -v "$PWD/supabase:/migration:ro" postgres:17 \
+            psql --host=aws-0-eu-west-2.pooler.supabase.com --port=5432 \
+            --username=postgres.xwzrtbjlztdtxvwckqrl --dbname=postgres \
+            --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=/migration/upgrade-058-zero-score-matching.sql
