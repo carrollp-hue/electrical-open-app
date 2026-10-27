@@ -5,7 +5,7 @@
     input.dataset.venueSuggestionsReady = 'true';
     const names = [...new Map((state.fixtures || [])
       .map(fixture => `${fixture.name || ''}`.trim())
-      .filter(Boolean)
+      .filter(name => name && !/^\d/.test(name))
       .map(name => [name.toLocaleLowerCase(), name])).values()]
       .sort((first, second) => first.localeCompare(second));
     const list = document.createElement('datalist');
