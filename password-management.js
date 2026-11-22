@@ -52,9 +52,8 @@
   const addForgotPasswordLink = () => {
     const loginForm = document.querySelector('#login-form');
     if (!loginForm || loginForm.querySelector('#forgot-password')) return;
-    loginForm.insertAdjacentHTML('beforeend', '<button class="text-button" type="button" id="forgot-password">Forgot password?</button><button class="text-button" type="button" id="set-up-invited-account">Set up invited account</button>');
+    loginForm.insertAdjacentHTML('beforeend', '<button class="text-button" type="button" id="forgot-password">Forgot password?</button><p class="form-message">Invited members should open the newest secure setup link in their email. If that link has expired, use “Forgot password?” with the invited email address.</p>');
     document.querySelector('#forgot-password').addEventListener('click', () => show('reset'));
-    document.querySelector('#set-up-invited-account').addEventListener('click', () => show('invite'));
   };
   const checkForcedChange = async () => {
     if (submitting || passwordCompleted) return;
