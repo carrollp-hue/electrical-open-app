@@ -17,8 +17,9 @@
   const checkSession = async () => {
     const params = new URLSearchParams(location.search);
     const tokenHash = params.get('token_hash');
-    if (tokenHash && params.get('type') === 'recovery') {
-      const { error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' });
+    const tokenType = params.get('type');
+    if (tokenHash && (tokenType === 'recovery' || tokenType === 'invite')) {
+      const { error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: tokenType });
       if (error) {
         showError(`Supabase could not verify this reset link: ${error.message}`);
         return;

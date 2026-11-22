@@ -13,6 +13,18 @@
     <link rel="stylesheet" href="password-management.css">
     <link rel="stylesheet" href="club-handicap-reminder.css">
     <link rel="stylesheet" href="club-handicap-removal.css">
+    <script>
+      // Supabase invitation links arrive with a one-time token in the URL.
+      // Send them straight to the dedicated password page before any app code
+      // can render the ordinary sign-in screen.
+      (() => {
+        const query = new URLSearchParams(location.search);
+        const fragment = new URLSearchParams(location.hash.slice(1));
+        if (query.get('type') === 'invite' || fragment.get('type') === 'invite') {
+          location.replace(`reset-password.html${location.search}${location.hash}`);
+        }
+      })();
+    </script>
     <title>Electrical Open Golf Society</title>
   </head>
   <body>
