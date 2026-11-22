@@ -52,7 +52,7 @@
       if (error) return message(error.message, true);
       await load();
       location.hash = '#admin/fixtures';
-      message('Fixture updated.');
+      message('Fixture updated and visible to members.');
     }, true);
   };
   new MutationObserver(wireFixtureEditor).observe(document.querySelector('#app'), { childList: true, subtree: true });
