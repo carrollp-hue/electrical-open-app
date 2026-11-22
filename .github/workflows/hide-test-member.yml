@@ -1,0 +1,26 @@
+name: Hide test member from app
+
+on:
+  push:
+    branches: [main]
+    paths: [supabase/upgrade-062-hide-test-member.sql]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: "startsWith(github.event.head_commit.message, 'Hide test member from app')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply database migration
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "$PGPASSWORD"
+          docker run --rm -e PGPASSWORD -v "$PWD/supabase:/migration:ro" postgres:17 \
+            psql --host=aws-0-eu-west-2.pooler.supabase.com --port=5432 \
+            --username=postgres.xwzrtbjlztdtxvwckqrl --dbname=postgres \
+            --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=/migration/upgrade-062-hide-test-member.sql

@@ -25,6 +25,7 @@ create table public.players (
   surname text not null,
   first_name text not null,
   active boolean not null default true,
+  is_test boolean not null default false,
   created_at timestamptz not null default now(),
   unique (surname, first_name)
 );
@@ -130,7 +131,7 @@ alter table public.audit_events enable row level security;
 
 create policy "Users may read their own profile" on public.profiles for select to authenticated using (id = auth.uid() or public.is_staff());
 create policy "Staff may read roles" on public.user_roles for select to authenticated using (public.is_staff());
-create policy "Members may view the player directory" on public.players for select to authenticated using (true);
+create policy "Members may view the player directory" on public.players for select to authenticated using (not is_test or profile_id = auth.uid() or public.is_staff());
 create policy "Staff manage players" on public.players for all to authenticated using (public.is_staff()) with check (public.is_staff());
 create policy "Members view courses" on public.courses for select to authenticated using (true);
 create policy "Staff manage courses" on public.courses for all to authenticated using (public.is_staff()) with check (public.is_staff());
