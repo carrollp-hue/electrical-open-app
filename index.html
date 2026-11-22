@@ -20,7 +20,7 @@
       (() => {
         const query = new URLSearchParams(location.search);
         const fragment = new URLSearchParams(location.hash.slice(1));
-        if (query.get('type') === 'invite' || fragment.get('type') === 'invite') {
+        if (query.get('type') === 'invite' || fragment.get('type') === 'invite' || query.has('code')) {
           location.replace(`reset-password.html${location.search}${location.hash}`);
         }
       })();
